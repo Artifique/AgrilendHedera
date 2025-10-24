@@ -1,0 +1,9 @@
+.git
+target/
+.mvn/
+.idea/
+*.iml
+mvnw
+mvnw.cmd
+.DS_Store
+Dockerfile
