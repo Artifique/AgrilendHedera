@@ -35,7 +35,6 @@ public class HarvestToken {
     private String tokenSymbol;
 
     @NotNull
-    @Positive
     @Column(name = "total_supply", nullable = false, precision = 15, scale = 0)
     private BigDecimal totalSupply;
 

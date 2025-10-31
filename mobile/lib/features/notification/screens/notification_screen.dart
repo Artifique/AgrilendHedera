@@ -1,24 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
-
-class NotificationItem {
-  final String id;
-  final String title;
-  final String subtitle;
-  final DateTime timestamp;
-  final IconData icon;
-  final Color color;
-
-  NotificationItem({
-    required this.id,
-    required this.title,
-    required this.subtitle,
-    required this.timestamp,
-    required this.icon,
-    required this.color,
-  });
-}
+import '../../../models/notification_item.dart'; // Import NotificationItem model
 
 class NotificationScreen extends StatefulWidget {
   const NotificationScreen({super.key});

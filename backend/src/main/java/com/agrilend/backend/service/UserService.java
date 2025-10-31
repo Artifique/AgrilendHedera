@@ -131,6 +131,13 @@ public class UserService {
         userRepository.save(user);
     }
 
+    public void linkHederaAccount(Long userId, String hederaAccountId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("Utilisateur non trouvé avec l'ID: " + userId));
+        user.setHederaAccountId(hederaAccountId);
+        userRepository.save(user);
+    }
+
     @Transactional(readOnly = true)
     public Page<UserProfileDto> getAllUsers(Pageable pageable) {
         Page<User> users = userRepository.findAll(pageable);

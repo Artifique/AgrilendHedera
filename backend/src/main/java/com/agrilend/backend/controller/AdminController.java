@@ -1,7 +1,5 @@
 package com.agrilend.backend.controller;
 
-import com.agrilend.backend.dto.common.ApiResponse;
-import com.agrilend.backend.dto.common.PageResponse;
 import com.agrilend.backend.dto.dashboard.DashboardStatsDto;
 import com.agrilend.backend.dto.offer.OfferDto;
 import com.agrilend.backend.dto.order.OrderDto;
@@ -9,8 +7,10 @@ import com.agrilend.backend.dto.product.ProductDto;
 import com.agrilend.backend.dto.tokenization.CreateWarehouseReceiptRequestDto;
 import com.agrilend.backend.dto.tokenization.TokenDistributionDto;
 import com.agrilend.backend.dto.tokenization.ValidateWarehouseReceiptRequestDto;
+import com.agrilend.backend.dto.tokenization.WarehouseReceiptDto;
 import com.agrilend.backend.dto.user.UserProfileDto;
 import com.agrilend.backend.entity.User;
+import com.agrilend.backend.entity.WarehouseReceipt;
 import com.agrilend.backend.entity.enums.OrderStatus;
 import com.agrilend.backend.security.UserPrincipal;
 import com.agrilend.backend.service.*;
@@ -30,6 +30,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
@@ -206,6 +207,36 @@ public class AdminController {
         return ResponseEntity.ok(ApiResponse.success("Produits trouvés avec succès", pageResponse));
     }
 
+    // Gestion des reçus d'entrepôt
+    @PostMapping("/warehouse-receipts")
+    @Operation(summary = "Créer un reçu d'entrepôt", description = "Crée un nouveau reçu d'entrepôt pour une récolte livrée")
+    public ResponseEntity<AdminController.ApiResponse<WarehouseReceiptDto>> createWarehouseReceipt(
+            @Valid @RequestBody CreateWarehouseReceiptRequestDto requestDto) {
+        try {
+            WarehouseReceipt receipt = tokenizationService.createWarehouseReceipt(
+                    requestDto.getFarmerId(),
+                    requestDto.getProductId(),
+                    requestDto.getBatchNumber(),
+                    requestDto.getGrossWeight(),
+                    requestDto.getNetWeight(),
+                    requestDto.getWeightUnit(),
+                    requestDto.getStorageLocation(),
+                    requestDto.getQualityGrade()
+            );
+            return ResponseEntity.ok(AdminController.ApiResponse.success("Reçu d'entrepôt créé avec succès", tokenizationService.convertToDto(receipt)));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest()
+                    .body(AdminController.ApiResponse.error("Erreur lors de la création du reçu d'entrepôt: " + e.getMessage()));
+        }
+    }
+
+    @GetMapping("/warehouse-receipts")
+    @Operation(summary = "Obtenir tous les reçus d'entrepôt")
+    public ResponseEntity<ApiResponse<List<com.agrilend.backend.dto.purchase.WarehouseReceiptDto>>> getWarehouseReceipts() {
+        List<com.agrilend.backend.dto.purchase.WarehouseReceiptDto> receipts = adminDashboardService.getWarehouseReceipts();
+        return ResponseEntity.ok(ApiResponse.success("Reçus d'entrepôt récupérés avec succès", receipts));
+    }
+
     // Gestion des offres
     @GetMapping("/offers")
     @Operation(summary = "Obtenir toutes les offres", description = "Récupère la liste paginée de toutes les offres")
@@ -317,12 +348,6 @@ public class AdminController {
         return ResponseEntity.ok(ApiResponse.success("Statut de commande mis à jour avec succès", updatedOrder));
     }
 
-    @PostMapping("/orders/{orderId}/release-escrow")
-    @Operation(summary = "Libérer le séquestre", description = "Libère les fonds en séquestre pour une commande")
-    public ResponseEntity<ApiResponse<OrderDto>> releaseEscrow(@PathVariable Long orderId) {
-        OrderDto updatedOrder = orderService.releaseEscrow(orderId);
-        return ResponseEntity.ok(ApiResponse.success("Séquestre libéré avec succès", updatedOrder));
-    }
 
     // =================== Dashboard ===================
     @GetMapping("/dashboard")
@@ -395,4 +420,164 @@ public class AdminController {
     }
 
 
+    // Static inner class for ApiResponse
+    public static class ApiResponse<T> {
+        private boolean success;
+        private String message;
+        private T data;
+        private LocalDateTime timestamp;
+
+        public ApiResponse() {
+            this.timestamp = LocalDateTime.now();
+        }
+
+        public ApiResponse(boolean success, String message) {
+            this();
+            this.success = success;
+            this.message = message;
+        }
+
+        public ApiResponse(boolean success, String message, T data) {
+            this(success, message);
+            this.data = data;
+        }
+
+        public static <T> ApiResponse<T> success(String message) {
+            return new ApiResponse<>(true, message);
+        }
+
+        public static <T> ApiResponse<T> success(String message, T data) {
+            return new ApiResponse<>(true, message, data);
+        }
+
+        public static <T> ApiResponse<T> error(String message) {
+            return new ApiResponse<>(false, message);
+        }
+
+        public static <T> ApiResponse<T> error(String message, T data) {
+            return new ApiResponse<>(false, message, data);
+        }
+
+        public boolean isSuccess() {
+            return success;
+        }
+
+        public void setSuccess(boolean success) {
+            this.success = success;
+        }
+
+        public String getMessage() {
+            return message;
+        }
+
+        public void setMessage(String message) {
+            this.message = message;
+        }
+
+        public T getData() {
+            return data;
+        }
+
+        public void setData(T data) {
+            this.data = data;
+        }
+
+        public LocalDateTime getTimestamp() {
+            return timestamp;
+        }
+
+        public void setTimestamp(LocalDateTime timestamp) {
+            this.timestamp = timestamp;
+        }
+    }
+
+    // Static inner class for PageResponse
+    public static class PageResponse<T> {
+        private List<T> content;
+        private int page;
+        private int size;
+        private long totalElements;
+        private int totalPages;
+        private boolean first;
+        private boolean last;
+        private boolean empty;
+
+        public PageResponse() {}
+
+        public PageResponse(List<T> content, int page, int size, long totalElements, int totalPages, 
+                           boolean first, boolean last, boolean empty) {
+            this.content = content;
+            this.page = page;
+            this.size = size;
+            this.totalElements = totalElements;
+            this.totalPages = totalPages;
+            this.first = first;
+            this.last = last;
+            this.empty = empty;
+        }
+
+        public List<T> getContent() {
+            return content;
+        }
+
+        public void setContent(List<T> content) {
+            this.content = content;
+        }
+
+        public int getPage() {
+            return page;
+        }
+
+        public void setPage(int page) {
+            this.page = page;
+        }
+
+        public int getSize() {
+            return size;
+        }
+
+        public void setSize(int size) {
+            this.size = size;
+        }
+
+        public long getTotalElements() {
+            return totalElements;
+        }
+
+        public void setTotalElements(long totalElements) {
+            this.totalElements = totalElements;
+        }
+
+        public int getTotalPages() {
+            return totalPages;
+        }
+
+        public void setTotalPages(int totalPages) {
+            this.totalPages = totalPages;
+        }
+
+        public boolean isFirst() {
+            return first;
+        }
+
+        public void setFirst(boolean first) {
+            this.first = first;
+        }
+
+        public boolean isLast() {
+            return last;
+        }
+
+        public void setLast(boolean last) {
+            this.last = last;
+        }
+
+        public boolean isEmpty() {
+            return empty;
+        }
+
+        public void setEmpty(boolean empty) {
+            this.empty = empty;
+        }
+    }
 }

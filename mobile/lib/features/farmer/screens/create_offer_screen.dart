@@ -1,17 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart'; // Explicitly import widgets.dart
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart'; // For date formatting
+import 'package:flutter_riverpod/flutter_riverpod.dart'; // Import ConsumerStatefulWidget
+import 'package:agrilend/models/product.dart'; // Import Product model
+import 'package:agrilend/features/buyer/providers/buyer_providers.dart'; // Import productsProvider
+import 'package:agrilend/core/providers/offer_provider.dart'; // Import offerServiceProvider
 
-class CreateOfferScreen extends StatefulWidget {
-  const CreateOfferScreen({super.key});
+class CreateOfferScreen extends ConsumerStatefulWidget {
+  const CreateOfferScreen({Key? key}) : super(key: key);
 
   @override
-  State<CreateOfferScreen> createState() => _CreateOfferScreenState();
+  ConsumerState<CreateOfferScreen> createState() => _CreateOfferScreenState();
 }
 
-class _CreateOfferScreenState extends State<CreateOfferScreen> {
+class _CreateOfferScreenState extends ConsumerState<CreateOfferScreen> {
   final _formKey = GlobalKey<FormState>();
-  final TextEditingController _productNameController = TextEditingController();
+  Product? _selectedProduct; // To store the selected product
   final TextEditingController _descriptionController = TextEditingController();
   final TextEditingController _quantityController = TextEditingController();
   final TextEditingController _priceController = TextEditingController();
@@ -38,7 +45,6 @@ class _CreateOfferScreenState extends State<CreateOfferScreen> {
 
   @override
   void dispose() {
-    _productNameController.dispose();
     _descriptionController.dispose();
     _quantityController.dispose();
     _priceController.dispose();
@@ -46,29 +52,51 @@ class _CreateOfferScreenState extends State<CreateOfferScreen> {
     super.dispose();
   }
 
-  void _submitForm() {
+  void _submitForm() async { // Make it async
     if (_formKey.currentState!.validate()) {
       // Process data
-      final String productName = _productNameController.text;
-      final String description = _descriptionController.text;
-      final double quantity = double.parse(_quantityController.text);
-      final double price = double.parse(_priceController.text);
-      final String availabilityDate = _availabilityDateController.text;
+      if (_selectedProduct == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Veuillez sélectionner un produit')),
+        );
+        return;
+      }
 
-      // TODO: Implement actual offer creation logic (e.g., API call)
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content:
-                Text('Offre créée pour $productName le $availabilityDate')),
+      final offerService = ref.read(offerServiceProvider); // Use ref.read
+
+      final int productId = _selectedProduct!.id!;
+      final double availableQuantity = double.parse(_quantityController.text);
+      final double suggestedUnitPrice = double.parse(_priceController.text);
+      final String availabilityDate = DateFormat('yyyy-MM-dd').format(_selectedDate!);
+      final String notes = _descriptionController.text;
+
+      final bool success = await offerService.createOffer(
+        productId: productId,
+        availableQuantity: availableQuantity,
+        suggestedUnitPrice: suggestedUnitPrice,
+        availabilityDate: availabilityDate,
+        notes: notes,
       );
 
-      // Optionally navigate back or clear form
-      GoRouter.of(context).pop();
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content:
+                  Text('Offre créée pour ${_selectedProduct!.name} le $availabilityDate')),
+        );
+        GoRouter.of(context).pop();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Échec de la création de l\'offre')),
+        );
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final products = ref.watch(productsProvider); // Watch productsProvider
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Créer une Offre'),
@@ -89,19 +117,37 @@ class _CreateOfferScreenState extends State<CreateOfferScreen> {
                     ),
               ),
               const SizedBox(height: 24),
-              TextFormField(
-                controller: _productNameController,
+              DropdownButtonFormField<Product>(
+                value: _selectedProduct,
                 decoration: InputDecoration(
-                  labelText: 'Nom du produit',
+                  labelText: 'Sélectionner un produit',
                   hintText: 'Ex: Tomates fraîches',
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
                   prefixIcon: const Icon(Icons.agriculture_rounded),
                 ),
+                items: products.map((product) { // Use products from ref.watch
+                  return DropdownMenuItem<Product>(
+                    value: product,
+                    child: Text(product.name),
+                  );
+                }).toList(),
+                onChanged: (Product? newValue) {
+                  setState(() {
+                    _selectedProduct = newValue;
+                    if (_selectedProduct != null) {
+                      _descriptionController.text = _selectedProduct!.description ?? '';
+                      _quantityController.text = _selectedProduct!.unit;
+                    } else {
+                      _descriptionController.clear();
+                      _quantityController.clear();
+                    }
+                  });
+                },
                 validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Veuillez entrer le nom du produit';
+                  if (value == null) {
+                    return 'Veuillez sélectionner un produit';
                   }
                   return null;
                 },

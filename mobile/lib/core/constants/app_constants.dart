@@ -1,6 +1,7 @@
 class AppConstants {
   static const String userTypeFarmer = 'farmer';
   static const String userTypeAgent = 'agent';
+  static const String userTypeBuyer = 'buyer';
   static const List<String> cropTypes = [
     'Maïs',
     'Riz',

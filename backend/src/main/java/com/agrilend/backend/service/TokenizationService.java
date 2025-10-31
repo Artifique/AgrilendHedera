@@ -1,5 +1,6 @@
 package com.agrilend.backend.service;
 
+import com.hedera.hashgraph.sdk.PrivateKey;
 import com.agrilend.backend.dto.tokenization.TokenDistributionDto;
 import com.agrilend.backend.entity.*;
 import com.agrilend.backend.entity.enums.ProductUnit;
@@ -20,6 +21,10 @@ import java.util.Optional;
 /**
  * Service de tokenisation des récoltes selon le processus défini dans les cahiers des charges
  */
+import com.agrilend.backend.dto.tokenization.WarehouseReceiptDto;
+import org.modelmapper.ModelMapper;
+import java.util.stream.Collectors;
+
 @Service
 @Transactional
 public class TokenizationService {
@@ -35,8 +40,17 @@ public class TokenizationService {
     @Autowired
     private TransactionRepository transactionRepository;
 
-    // @Autowired // Commented out to force simulation mode for HederaService
-    private HederaService hederaService = null; // Force null to activate simulation mode
+    @Autowired
+    private FarmerRepository farmerRepository;
+
+    @Autowired
+    private ProductRepository productRepository;
+
+    @Autowired
+    private HederaService hederaService;
+
+    @Autowired
+    private ModelMapper modelMapper;
 
     @Value("${hedera.treasury.account-id:0.0.6825338}")
     private String treasuryAccountId;
@@ -44,9 +58,15 @@ public class TokenizationService {
     /**
      * Étape 0: L'agriculteur livre sa récolte à l'entrepôt
      */
-    public WarehouseReceipt createWarehouseReceipt(Farmer farmer, Product product, String batchNumber,
+    public WarehouseReceipt createWarehouseReceipt(Long farmerId, Long productId, String batchNumber,
                                                    BigDecimal grossWeight, BigDecimal netWeight,
                                                    ProductUnit weightUnit, String storageLocation, String qualityGrade) {
+
+        Farmer farmer = farmerRepository.findById(farmerId)
+                .orElseThrow(() -> new RuntimeException("Agriculteur non trouvé avec l'ID: " + farmerId));
+
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new RuntimeException("Produit non trouvé avec l'ID: " + productId));
         
         // Vérifier que le numéro de lot n'existe pas déjà
         if (warehouseReceiptRepository.existsByBatchNumber(batchNumber)) {
@@ -161,7 +181,8 @@ public class TokenizationService {
     public void signScheduledTransaction(String scheduleId, User auditor) {
         try {
             // Signer la transaction programmée sur Hedera
-            String transactionId = hederaService.signScheduledTransaction(scheduleId, auditor);
+            // Assurez-vous que l'entité User a une méthode getHederaPrivateKey() qui retourne la clé privée de l'utilisateur
+            String transactionId = hederaService.signScheduledTransaction(scheduleId, hederaService.getOperatorKey());
 
             // Mettre à jour le reçu
             WarehouseReceipt receipt = warehouseReceiptRepository.findByScheduledTransactionId(scheduleId)
@@ -208,7 +229,7 @@ public class TokenizationService {
                     harvestToken.getHederaTokenId(),
                     treasuryAccountId,
                     distribution.getRecipientAccountId(),
-                    distribution.getAmount()
+                    distribution.getAmount().longValue() // Convert BigDecimal to long
                 );
 
                 // Enregistrer la transaction de distribution
@@ -245,7 +266,7 @@ public class TokenizationService {
                 tokenId,
                 buyerAccountId,
                 treasuryAccountId,
-                amount
+                amount.longValue() // Convert BigDecimal to long
             );
 
             // Enregistrer la transaction de rachat
@@ -328,5 +349,28 @@ public class TokenizationService {
     public WarehouseReceipt getWarehouseReceiptById(Long receiptId) {
         return warehouseReceiptRepository.findById(receiptId)
             .orElseThrow(() -> new RuntimeException("Reçu d'entrepôt non trouvé avec l'ID: " + receiptId));
+    }
+
+    public WarehouseReceiptDto convertToDto(WarehouseReceipt receipt) {
+        WarehouseReceiptDto dto = modelMapper.map(receipt, WarehouseReceiptDto.class);
+        if (receipt.getFarmer() != null && receipt.getFarmer().getUser() != null) {
+            dto.setFarmerId(receipt.getFarmer().getId());
+            dto.setFarmerName(receipt.getFarmer().getUser().getFirstName() + " " + receipt.getFarmer().getUser().getLastName());
+        }
+        if (receipt.getProduct() != null) {
+            dto.setProductId(receipt.getProduct().getId());
+            dto.setProductName(receipt.getProduct().getName());
+        }
+        if (receipt.getValidatedBy() != null) {
+            dto.setValidatedById(receipt.getValidatedBy().getId());
+            dto.setValidatedByEmail(receipt.getValidatedBy().getEmail());
+        }
+        return dto;
+    }
+
+    public List<WarehouseReceiptDto> convertToDtoList(List<WarehouseReceipt> receipts) {
+        return receipts.stream()
+                .map(this::convertToDto)
+                .collect(Collectors.toList());
     }
 }

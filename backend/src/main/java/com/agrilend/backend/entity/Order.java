@@ -60,11 +60,9 @@ public class Order {
     @Column(name = "cancellation_reason", columnDefinition = "TEXT")
     private String cancellationReason;
 
-    @Column(name = "escrow_transaction_id")
-    private String escrowTransactionId;
-
-    @Column(name = "escrow_start_date")
-    private LocalDateTime escrowStartDate;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "hbar_deposit_id")
+    private HbarDeposit hbarDeposit;
 
     @Column(name = "escrow_end_date")
     private LocalDateTime escrowEndDate;
@@ -195,20 +193,12 @@ public class Order {
         this.cancellationReason = cancellationReason;
     }
 
-    public String getEscrowTransactionId() {
-        return escrowTransactionId;
+    public HbarDeposit getHbarDeposit() {
+        return hbarDeposit;
     }
 
-    public void setEscrowTransactionId(String escrowTransactionId) {
-        this.escrowTransactionId = escrowTransactionId;
-    }
-
-    public LocalDateTime getEscrowStartDate() {
-        return escrowStartDate;
-    }
-
-    public void setEscrowStartDate(LocalDateTime escrowStartDate) {
-        this.escrowStartDate = escrowStartDate;
+    public void setHbarDeposit(HbarDeposit hbarDeposit) {
+        this.hbarDeposit = hbarDeposit;
     }
 
     public LocalDateTime getEscrowEndDate() {

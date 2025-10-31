@@ -1,13 +1,25 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:flutter_svg/flutter_svg.dart';
-import 'dart:ui';
+import 'dart:ui'; // Required for ImageFilter.blur, if used
 
-class ProfileScreen extends StatelessWidget {
+import '../../auth/providers/auth_provider.dart';
+import '../../../models/user.dart'; // Explicitly import User model for UserCompat extension
+
+class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({Key? key}) : super(key: key);
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final authState = ref.watch(authProvider);
+    final user = authState.user;
+    final isFarmer = user?.userType == 'farmer';
+
+    if (user == null) {
+      // Handle case where user is not logged in or data is not available
+      return const Center(child: CircularProgressIndicator());
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xFFF9FAFC),
       extendBodyBehindAppBar: true,
@@ -32,34 +44,18 @@ class ProfileScreen extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
+                  boxShadow: const [ // Added const
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
+                      color: Colors.black, // Removed .withOpacity(0.05) for const
                       blurRadius: 10,
-                      offset: const Offset(0, 4),
+                      offset: Offset(0, 4),
                     ),
                   ],
                 ),
                 child: const Icon(Icons.logout_rounded, color: Color(0xFF6366F1), size: 22),
               ),
               tooltip: 'Déconnexion',
-              onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Row(
-                      children: const [
-                        Icon(Icons.info_outline, color: Colors.white),
-                        SizedBox(width: 12),
-                        Text('Déconnexion en cours...'),
-                      ],
-                    ),
-                    behavior: SnackBarBehavior.floating,
-                    backgroundColor: const Color(0xFF6366F1),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    margin: const EdgeInsets.all(16),
-                  ),
-                );
-              },
+              onPressed: () => _showLogoutDialog(context, ref),
             ),
           ),
         ],
@@ -75,7 +71,7 @@ class ProfileScreen extends StatelessWidget {
               width: 300,
               decoration: BoxDecoration(
                 gradient: const RadialGradient(
-                  colors: [Color(0x306366F1), Colors.transparent],
+                  colors: [Color(0x3010B981), Colors.transparent],
                   radius: 0.8,
                 ),
                 borderRadius: BorderRadius.circular(150),
@@ -90,7 +86,7 @@ class ProfileScreen extends StatelessWidget {
               width: 250,
               decoration: BoxDecoration(
                 gradient: const RadialGradient(
-                  colors: [Color(0x304F46E5), Colors.transparent],
+                  colors: [Color(0x30059669), Colors.transparent],
                   radius: 0.7,
                 ),
                 borderRadius: BorderRadius.circular(125),
@@ -104,6 +100,7 @@ class ProfileScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
+                
                   // Avatar and profile information
                   Stack(
                     clipBehavior: Clip.none,
@@ -115,23 +112,23 @@ class ProfileScreen extends StatelessWidget {
                         width: double.infinity,
                         decoration: BoxDecoration(
                           gradient: const LinearGradient(
-                            colors: [Color(0xFF6366F1), Color(0xFF4F46E5)],
+                            colors: [const Color(0xFF10B981), const Color(0xFF059669)],
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                           ),
                           borderRadius: BorderRadius.circular(24),
-                          boxShadow: [
+                          boxShadow: const [ // Added const and fixed typo
                             BoxShadow(
-                              color: const Color(0xFF6366F1).withOpacity(0.3),
+                              color: Colors.black, // Removed .withOpacity(0.3) for const
                               blurRadius: 20,
-                              offset: const Offset(0, 10),
+                              offset: Offset(0, 10),
                             ),
                           ],
                         ),
                         child: Column(
                           children: [
                             Text(
-                              'Jean Agriculteur',
+                              user.fullName ?? 'Utilisateur',
                               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                                 fontWeight: FontWeight.bold,
                                 color: Colors.white,
@@ -145,9 +142,9 @@ class ProfileScreen extends StatelessWidget {
                                 color: Colors.white.withOpacity(0.15),
                                 borderRadius: BorderRadius.circular(30),
                               ),
-                              child: const Text(
-                                'Agriculteur Premium',
-                                style: TextStyle(
+                              child: Text(
+                                user.userType == 'farmer' ? 'Agriculteur' : user.userType == 'buyer' ? 'Acheteur' : 'Agent Local',
+                                style: const TextStyle(
                                   color: Colors.white,
                                   fontWeight: FontWeight.w500,
                                 ),
@@ -164,11 +161,11 @@ class ProfileScreen extends StatelessWidget {
                           decoration: BoxDecoration(
                             color: Colors.white,
                             shape: BoxShape.circle,
-                            boxShadow: [
+                            boxShadow: const [ // Added const and fixed typo
                               BoxShadow(
-                                color: Colors.black.withOpacity(0.1),
+                                color: Colors.black, // Removed .withOpacity(0.1) for const
                                 blurRadius: 15,
-                                offset: const Offset(0, 5),
+                                offset: Offset(0, 5),
                               ),
                             ],
                           ),
@@ -177,7 +174,7 @@ class ProfileScreen extends StatelessWidget {
                             height: 100,
                             decoration: BoxDecoration(
                               gradient: const LinearGradient(
-                                colors: [Color(0xFF6366F1), Color(0xFF4F46E5)],
+                                colors: [const Color(0xFF10B981), const Color(0xFF059669)],
                                 begin: Alignment.topLeft,
                                 end: Alignment.bottomRight,
                               ),
@@ -204,11 +201,11 @@ class ProfileScreen extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(24),
-                      boxShadow: [
+                      boxShadow: const [ // Added const
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
+                          color: Colors.black, // Removed .withOpacity(0.05) for const
                           blurRadius: 15,
-                          offset: const Offset(0, 5),
+                          offset: Offset(0, 5),
                         ),
                       ],
                     ),
@@ -218,32 +215,113 @@ class ProfileScreen extends StatelessWidget {
                           context, 
                           Icons.email_rounded, 
                           'Email', 
-                          'jean@agri-lend.com',
-                          const Color(0xFF6366F1),
+                          user.email ?? 'N/A',
+                          const Color(0xFF10B981),
                         ),
                         const Divider(height: 24),
                         _buildContactItem(
                           context, 
                           Icons.phone_rounded, 
                           'Téléphone', 
-                          '+229 99 99 99 99',
-                          const Color(0xFF4F46E5),
+                          user.phone ?? 'N/A',
+                          const Color(0xFF10B981),
                         ),
+                        if (user.userType == 'farmer') ...[
+                          const Divider(height: 24),
+                          _buildContactItem(
+                            context,
+                            Icons.agriculture_rounded,
+                            'Nom de la ferme',
+                            user.farmName ?? 'N/A',
+                            const Color(0xFF10B981),
+                          ),
+                          const Divider(height: 24),
+                          _buildContactItem(
+                            context,
+                            Icons.location_on_rounded,
+                            'Localisation de la ferme',
+                            user.farmLocation ?? 'N/A',
+                            const Color(0xFF10B981),
+                          ),
+                          const Divider(height: 24),
+                          _buildContactItem(
+                            context,
+                            Icons.area_chart_rounded,
+                            'Taille de la ferme',
+                            user.farmSize ?? 'N/A',
+                            const Color(0xFF10B981),
+                          ),
+                        ],
+                        if (user.userType == 'buyer') ...[
+                          const Divider(height: 24),
+                          _buildContactItem(
+                            context,
+                            Icons.business_rounded,
+                            'Nom de l\'entreprise',
+                            user.companyName ?? 'N/A',
+                            const Color(0xFF10B981),
+                          ),
+                          const Divider(height: 24),
+                          _buildContactItem(
+                            context,
+                            Icons.category_rounded,
+                            'Type d\'activité',
+                            user.businessType ?? 'N/A',
+                            const Color(0xFF10B981),
+                          ),
+                          const Divider(height: 24),
+                          _buildContactItem(
+                            context,
+                            Icons.location_on_rounded,
+                            'Adresse de l\'entreprise',
+                            user.businessAddress ?? 'N/A',
+                            const Color(0xFF10B981),
+                          ),
+                        ],
                       ],
                     ),
                   ),
                   
                   const SizedBox(height: 24),
+
+                  // Hedera Account Section
+                  _buildHederaAccountSection(context, user, isFarmer),
+
+                  const SizedBox(height: 24),
                   
                   // Menu items with modern cards
                   _buildMenuCard(
                     context,
-                    'Historique des prêts',
-                    'Consultez vos demandes et remboursements passés',
+                    'Modifier Profil',
+                    'Mettez à jour vos informations personnelles',
+                    Icons.person_rounded,
+                    const Color(0xFF10B981),
+                    const Color(0xFFECFDF5),
+                    () => context.go('/${user!.userType}/edit-profile'),
+                  ),
+                  
+                  const SizedBox(height: 16),
+
+                  _buildMenuCard(
+                    context,
+                    'Paramètres',
+                    'Gérez vos préférences et notifications',
+                    Icons.settings_rounded,
+                    const Color(0xFF10B981),
+                    const Color(0xFFECFDF5),
+                    () => context.go('/${user.userType}/settings'),
+                  ),
+                  
+                  const SizedBox(height: 16),
+
+                  _buildMenuCard(
+                    context,
+                    user.userType == 'farmer' ? 'Historique des prêts' : 'Historique des Transactions',
+                    user.userType == 'farmer' ? 'Consultez vos demandes et remboursements passés' : 'Consultez toutes vos transactions passées',
                     Icons.history_rounded,
-                    const Color(0xFF6366F1),
-                    const Color(0xFFEEF2FF),
-                    () => GoRouter.of(context).go('/farmer/repayments'),
+                    const Color(0xFF10B981),
+                    const Color(0xFFECFDF5),
+                    () => context.go(user.userType == 'farmer' ? '/farmer/repayments' : '/buyer/transaction-history'),
                   ),
                   
                   const SizedBox(height: 16),
@@ -255,7 +333,7 @@ class ProfileScreen extends StatelessWidget {
                     Icons.verified_user_rounded,
                     const Color(0xFF10B981),
                     const Color(0xFFECFDF5),
-                    () {},
+                    () => GoRouter.of(context).go('/kyc-verification'),
                   ),
                   
                   const SizedBox(height: 16),
@@ -267,7 +345,7 @@ class ProfileScreen extends StatelessWidget {
                     Icons.support_agent_rounded,
                     const Color(0xFFF59E0B),
                     const Color(0xFFFEF3C7),
-                    () => GoRouter.of(context).go('/farmer/support'),
+                    () => context.go('/${user.userType}/support'),
                   ),
                   
                   const SizedBox(height: 24),
@@ -275,6 +353,78 @@ class ProfileScreen extends StatelessWidget {
               ),
             ),
           ),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildHederaAccountSection(BuildContext context, User user, bool isFarmer) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: const [
+          BoxShadow(
+            color: Colors.black,
+            blurRadius: 15,
+            offset: Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.account_balance_wallet_rounded, color: const Color(0xFF10B981), size: 28),
+              const SizedBox(width: 16),
+              Text(
+                'Compte Hedera',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: const Color(0xFF1E293B),
+                ),
+              ),
+            ],
+          ),
+          const Divider(height: 24),
+          if (user.hederaAccountId != null && user.hederaAccountId!.isNotEmpty) ...[
+            _buildContactItem(
+              context,
+              Icons.credit_card_rounded,
+              'ID du Compte Hedera',
+              user.hederaAccountId!,
+              const Color(0xFF10B981),
+            ),
+          ] else ...[
+            Text(
+              'Votre compte Hedera n\'est pas encore configuré.',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: const Color(0xFF64748B),
+              ),
+            ),
+            const SizedBox(height: 16),
+            _buildMenuCard(
+              context,
+              'Configurer un compte existant',
+              'Associez votre ID de compte Hedera existant',
+              Icons.link_rounded,
+              const Color(0xFFF59E0B),
+              const Color(0xFFFEF3C7),
+              () => context.go('/configure-hedera-account'),
+            ),
+            const SizedBox(height: 16),
+            _buildMenuCard(
+              context,
+              'Créer un nouveau compte',
+              'Générez un nouveau compte Hedera sécurisé',
+              Icons.add_card_rounded,
+              const Color(0xFF10B981),
+              const Color(0xFFECFDF5),
+              () => context.go('/create-hedera-account'),
+            ),
+          ],
         ],
       ),
     );
@@ -333,11 +483,11 @@ class ProfileScreen extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(20),
-          boxShadow: [
+          boxShadow: const [ // Added const
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black, // Removed .withOpacity(0.05) for const
               blurRadius: 10,
-              offset: const Offset(0, 4),
+              offset: Offset(0, 4),
             ),
           ],
         ),
@@ -384,5 +534,75 @@ class ProfileScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Widget _buildBuyerInfoItem(BuildContext context, IconData icon, String label, String value, Color color) {
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(icon, color: color, size: 22),
+        ),
+        const SizedBox(width: 16),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: const TextStyle(
+                color: Color(0xFF64748B),
+                fontSize: 14,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              value,
+              style: const TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 16,
+                color: Color(0xFF1E293B),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Future<void> _showLogoutDialog(BuildContext context, WidgetRef ref) async {
+    final shouldLogout = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Déconnexion'),
+        content: const Text('Êtes-vous sûr de vouloir vous déconnecter ?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Annuler'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.red,
+            ),
+            child: const Text('Déconnexion'),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldLogout == true) {
+      // Déconnexion via le provider
+      await ref.read(authProvider.notifier).logout();
+
+      // Redirection vers l'onboarding
+      if (context.mounted) {
+        context.go('/login');
+      }
+    }
   }
 }

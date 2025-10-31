@@ -18,7 +18,7 @@ public class OpenApiConfig {
         return new OpenAPI()
             .info(new Info()
                 .title("AgriLend API")
-                .description("API pour la plateforme AgriLend de tokenisation agricole avec Hedera Hashgraph")
+                .description("API RESTful pour la plateforme AgriLend, une solution innovante de tokenisation agricole basée sur Hedera Hashgraph. Cette API gère l'ensemble du cycle de vie des produits agricoles, de la création d'offres par les agriculteurs à l'achat par les acheteurs, en passant par la tokenisation des récoltes et la gestion des transactions sur le réseau Hedera. Elle intègre des fonctionnalités d'authentification JWT, de gestion des utilisateurs (agriculteurs, acheteurs, administrateurs), de suivi des commandes et des livraisons, et de statistiques de tableau de bord. Les contrats intelligents Hedera (HbarToTokenPoolHTS et PoolFactory) sont utilisés pour la gestion des dépôts HBAR et la distribution de tokens HTS représentant les récoltes.")
                 .version("1.0.0")
                 .contact(new Contact()
                     .name("Équipe AgriLend")

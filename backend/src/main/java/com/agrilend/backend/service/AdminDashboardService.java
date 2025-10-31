@@ -8,6 +8,9 @@ import com.agrilend.backend.entity.enums.OrderStatus;
 import com.agrilend.backend.entity.enums.TransactionType;
 import com.agrilend.backend.entity.enums.UserRole;
 import com.agrilend.backend.repository.*;
+import com.agrilend.backend.entity.WarehouseReceipt;
+import com.agrilend.backend.dto.purchase.WarehouseReceiptDto;
+import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -40,6 +43,12 @@ public class AdminDashboardService {
     private DeliveryRepository deliveryRepository;
     @Autowired
     private ProductRepository productRepository;
+
+    @Autowired
+    private WarehouseReceiptRepository warehouseReceiptRepository;
+
+    @Autowired
+    private ModelMapper modelMapper;
 
     public DashboardStatsDto getDashboardStats() {
         DashboardStatsDto stats = new DashboardStatsDto();
@@ -169,5 +178,19 @@ public class AdminDashboardService {
             result.put(monthStart.format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM")), revenue != null ? revenue : BigDecimal.ZERO);
         }
         return result;
+    }
+
+    public List<com.agrilend.backend.dto.purchase.WarehouseReceiptDto> getWarehouseReceipts() {
+        List<com.agrilend.backend.entity.WarehouseReceipt> receipts = warehouseReceiptRepository.findAll();
+        return receipts.stream()
+                .map(this::convertToDto)
+                .collect(java.util.stream.Collectors.toList());
+    }
+
+    private com.agrilend.backend.dto.purchase.WarehouseReceiptDto convertToDto(com.agrilend.backend.entity.WarehouseReceipt receipt) {
+        com.agrilend.backend.dto.purchase.WarehouseReceiptDto dto = modelMapper.map(receipt, com.agrilend.backend.dto.purchase.WarehouseReceiptDto.class);
+        dto.setFarmerName(receipt.getFarmer().getUser().getFirstName() + " " + receipt.getFarmer().getUser().getLastName());
+        dto.setProductName(receipt.getProduct().getName());
+        return dto;
     }
 }

@@ -1,28 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
-
-class Transaction {
-  final String id;
-  final String type;
-  final double amount;
-  final DateTime date;
-  final String status;
-  final String description;
-  final IconData icon;
-  final Color color;
-
-  Transaction({
-    required this.id,
-    required this.type,
-    required this.amount,
-    required this.date,
-    required this.status,
-    required this.description,
-    required this.icon,
-    required this.color,
-  });
-}
+import '../../../models/transaction.dart'; // Import Transaction model
 
 class TransactionHistoryScreen extends StatefulWidget {
   const TransactionHistoryScreen({super.key});
@@ -504,12 +483,12 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen>
                       width: 50,
                       height: 50,
                       decoration: BoxDecoration(
-                        color: transaction.color.withOpacity(0.1),
+                        color: (transaction.color ?? Colors.grey).withOpacity(0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Icon(
                         transaction.icon,
-                        color: transaction.color,
+                        color: transaction.color ?? Colors.grey,
                         size: 24,
                       ),
                     ),
@@ -535,7 +514,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen>
                                   vertical: 4,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: transaction.color.withOpacity(0.1),
+                                  color: (transaction.color ?? Colors.grey).withOpacity(0.1),
                                   borderRadius: BorderRadius.circular(20),
                                 ),
                                 child: Text(
@@ -543,7 +522,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen>
                                   style: TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.w600,
-                                    color: transaction.color,
+                                    color: transaction.color ?? Colors.grey,
                                   ),
                                 ),
                               ),

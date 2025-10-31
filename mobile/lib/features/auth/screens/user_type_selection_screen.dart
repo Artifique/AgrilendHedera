@@ -10,48 +10,43 @@ class UserTypeSelectionScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.background,
       body: SafeArea(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: Column(
             children: [
               const SizedBox(height: 40),
               _buildHeader(context),
               const SizedBox(height: 60),
-              Expanded(
-                child: Column(
-                  children: [
-                    _buildUserTypeCard(
-                      context,
-                      title: 'Agriculteur',
-                      description: 'Je souhaite obtenir un financement pour mes activités agricoles',
-                      icon: Icons.agriculture_rounded,
-                      color: const Color(0xFF10B981),
-                      onTap: () => _navigateToRegister(context, 'farmer'),
-                    ).animate().slideX(
-                      delay: const Duration(milliseconds: 200),
-                      duration: const Duration(milliseconds: 600),
-                      begin: -1,
-                      end: 0,
-                    ),
-
-                    const SizedBox(height: 24),
-                    _buildUserTypeCard(
-                      context,
-                      title: 'Agent Local',
-                      description: 'Je représente Agri-lend dans ma région',
-                      icon: Icons.support_agent_rounded,
-                      color: const Color(0xFF6366F1),
-                      onTap: () => _navigateToRegister(context, 'agent'),
-                    ).animate().slideX(
-                      delay: const Duration(milliseconds: 600),
-                      duration: const Duration(milliseconds: 600),
-                      begin: -1,
-                      end: 0,
-                    ),
-                  ],
-                ),
+              _buildUserTypeCard(
+                context,
+                title: 'Agriculteur',
+                description: 'Je souhaite vendre mes produits agricoles',
+                icon: Icons.agriculture_rounded,
+                color: const Color(0xFF10B981),
+                onTap: () => _navigateToBasicInfo(context, 'farmer'),
+              ).animate().slideX(
+                delay: const Duration(milliseconds: 200),
+                duration: const Duration(milliseconds: 600),
+                begin: -1,
+                end: 0,
               ),
+              const SizedBox(height: 24),
+              _buildUserTypeCard(
+                context,
+                title: 'Acheteur',
+                description: 'Je souhaite acheter des produits agricoles frais',
+                icon: Icons.shopping_cart_rounded,
+                color: const Color(0xFFF59E0B),
+                onTap: () => _navigateToBasicInfo(context, 'buyer'),
+              ).animate().slideX(
+                delay: const Duration(milliseconds: 1000),
+                duration: const Duration(milliseconds: 600),
+                begin: -1,
+                end: 0,
+              ),
+              const SizedBox(height: 40),
               _buildLoginPrompt(context),
+              const SizedBox(height: 20),
             ],
           ),
         ),
@@ -193,7 +188,7 @@ class UserTypeSelectionScreen extends StatelessWidget {
     ).animate().fade(delay: const Duration(milliseconds: 800));
   }
 
-  void _navigateToRegister(BuildContext context, String userType) {
-    context.go('/register?userType=$userType');
+  void _navigateToBasicInfo(BuildContext context, String userType) {
+    context.go('/basic-info?userType=$userType');
   }
 }

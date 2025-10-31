@@ -1,6 +1,5 @@
 package com.agrilend.backend.service;
 
-import com.agrilend.backend.entity.User;
 import com.hedera.hashgraph.sdk.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -9,6 +8,8 @@ import org.springframework.stereotype.Service;
 
 import jakarta.annotation.PostConstruct;
 import java.math.BigDecimal;
+import java.math.BigInteger;
+import java.util.Collections;
 
 /**
  * Service d'intégration avec Hedera Hashgraph pour la tokenisation des récoltes
@@ -27,9 +28,6 @@ public class HederaService {
     @Value("${hedera.operator.private-key:}")
     private String operatorPrivateKey;
 
-    @Value("${hedera.treasury.account-id:}")
-    private String treasuryAccountId;
-
     private Client client;
     private AccountId operatorId;
     private PrivateKey operatorKey;
@@ -37,14 +35,12 @@ public class HederaService {
     @PostConstruct
     public void initializeClient() {
         try {
-            // Configuration du réseau Hedera
             if ("mainnet".equalsIgnoreCase(network)) {
                 client = Client.forMainnet();
             } else {
                 client = Client.forTestnet();
             }
 
-            // Configuration du compte opérateur
             if (operatorAccountId != null && !operatorAccountId.isEmpty() &&
                     operatorPrivateKey != null && !operatorPrivateKey.isEmpty()) {
 
@@ -54,7 +50,7 @@ public class HederaService {
 
                 logger.info("Client Hedera initialisé avec succès sur le réseau: {}", network);
             } else {
-                logger.warn("Configuration Hedera incomplète - mode simulation activé");
+                throw new IllegalStateException("Configuration Hedera incomplète: hedera.operator.account-id et/ou hedera.operator.private-key manquants");
             }
 
         } catch (Exception e) {
@@ -63,41 +59,31 @@ public class HederaService {
     }
 
     /**
-     * Crée un token fongible pour représenter une récolte
+     * Crée un token fongible (AgriToken) qui peut être minté et brûlé.
+     * La supply est infinie pour permettre de minter des tokens à la demande.
      */
-    public String createFungibleToken(String tokenName, String tokenSymbol, 
-                                     BigDecimal maxSupply, String treasuryAccountId) {
+    public String createFungibleToken(String tokenName, String tokenSymbol, BigDecimal maxSupply, String treasuryAccountId) {
         try {
-            if (client == null || operatorId == null) {
-                // Mode simulation
-                String simulatedTokenId = "0.0." + (System.currentTimeMillis() % 1000000);
-                logger.info("Mode simulation - Token créé: {} ({})", simulatedTokenId, tokenSymbol);
-                return simulatedTokenId;
-            }
-
             AccountId treasury = AccountId.fromString(treasuryAccountId);
-
-            logger.info("Creating fungible token with: Name={}, Symbol={}, MaxSupply={}, Treasury={}",
-                tokenName, tokenSymbol, maxSupply, treasuryAccountId);
 
             TokenCreateTransaction tokenCreateTx = new TokenCreateTransaction()
                     .setTokenName(tokenName)
                     .setTokenSymbol(tokenSymbol)
-                    .setDecimals(0)
+                    .setDecimals(2) // e.g., 1.00 AgriToken
                     .setInitialSupply(0)
-                    .setMaxSupply(maxSupply.longValue())
+                    .setMaxSupply(maxSupply.longValue()) // Set max supply
                     .setTreasuryAccountId(treasury)
-                    .setSupplyType(TokenSupplyType.FINITE)
-                    .setSupplyKey(operatorKey)
+                    .setSupplyType(TokenSupplyType.FINITE) // Finite supply when maxSupply is set
+                    .setSupplyKey(operatorKey) // Key to authorize minting
+                    .setWipeKey(operatorKey) // Key to authorize burning
                     .setAdminKey(operatorKey)
                     .setFreezeDefault(false)
-                    .setTokenMemo("Harvest token for " + tokenName);
+                    .setTokenMemo("Agrilend AgriToken");
 
             TransactionResponse response = tokenCreateTx.execute(client);
-            TransactionReceipt receipt = response.getReceipt(client);
-            TokenId tokenId = receipt.tokenId;
+            TokenId tokenId = response.getReceipt(client).tokenId;
 
-            logger.info("Token fongible créé: {} ({})", tokenId, tokenSymbol);
+            logger.info("Token fongible (AgriToken) créé: {} ({})", tokenId, tokenSymbol);
             return tokenId.toString();
 
         } catch (Exception e) {
@@ -107,104 +93,310 @@ public class HederaService {
     }
 
     /**
-     * Crée une transaction programmée pour le minting de tokens
+     * Crée une transaction programmée pour le mint d'un token.
+     * @param tokenId L'ID du token à minter.
+     * @param amount Le montant à minter.
+     * @param memo Un mémo pour la transaction.
+     * @param receiptHash Le hash du reçu d'entrepôt.
+     * @return L'ID du schedule.
      */
-    public String createScheduledTokenMint(String tokenId, BigDecimal amount, 
-                                          String batchNumber, String receiptHash) {
+    public String createScheduledTokenMint(String tokenId, BigDecimal amount, String memo, String receiptHash) {
         try {
-            if (client == null || operatorId == null) {
-                // Mode simulation
-                String simulatedScheduleId = "0.0." + (System.currentTimeMillis() % 1000000);
-                logger.info("Mode simulation - Transaction programmée créée: {} pour le batch: {}", 
-                           simulatedScheduleId, batchNumber);
-                return simulatedScheduleId;
-            }
+            TokenMintTransaction tokenMintTx = new TokenMintTransaction()
+                    .setTokenId(TokenId.fromString(tokenId))
+                    .setAmount(amount.longValue()); // Convert BigDecimal to long
 
-            TokenId token = TokenId.fromString(tokenId);
+            ScheduleCreateTransaction scheduleCreateTx = new ScheduleCreateTransaction()
+                    .setScheduledTransaction(tokenMintTx)
+                    .setAdminKey(operatorKey)
+                    .setPayerAccountId(operatorId);
 
-            TokenMintTransaction mintTx = new TokenMintTransaction()
-                    .setTokenId(token)
-                    .setAmount(amount.longValue())
-                    .setTransactionMemo("Mint for batch: " + batchNumber);
+            TransactionResponse response = scheduleCreateTx.execute(client);
+            ScheduleId scheduleId = response.getReceipt(client).scheduleId;
 
-            ScheduleCreateTransaction scheduleTx = new ScheduleCreateTransaction()
-                    .setScheduledTransaction(mintTx)
-                    .setScheduleMemo("Scheduled mint for batch: " + batchNumber + ", hash: " + receiptHash)
-                    .setAdminKey(operatorKey);
-
-            TransactionResponse response = scheduleTx.execute(client);
-            TransactionReceipt receipt = response.getReceipt(client);
-            ScheduleId scheduleId = receipt.scheduleId;
-
-            logger.info("Transaction programmée créée: {} pour le batch: {}", scheduleId, batchNumber);
+            logger.info("Transaction programmée de mint créée: {} pour le token {}", scheduleId, tokenId);
             return scheduleId.toString();
 
         } catch (Exception e) {
-            logger.error("Erreur lors de la création de la transaction programmée", e);
-            throw new RuntimeException("Impossible de créer la transaction programmée", e);
+            logger.error("Erreur lors de la création de la transaction programmée de mint", e);
+            throw new RuntimeException("Impossible de créer la transaction programmée de mint", e);
         }
     }
 
     /**
-     * Signe une transaction programmée
+     * Signe une transaction programmée.
+     * @param scheduleId L'ID du schedule à signer.
+     * @param signer La clé privée de l'opérateur.
+     * @return L'ID de la transaction.
      */
-    public String signScheduledTransaction(String scheduleId, User auditor) {
+    public String signScheduledTransaction(String scheduleId, PrivateKey signer) {
         try {
-            if (client == null || operatorId == null) {
-                // Mode simulation
-                String simulatedTxId = "0.0." + (System.currentTimeMillis() % 1000000) + "@" + 
-                                     (System.currentTimeMillis() / 1000);
-                logger.info("Mode simulation - Transaction programmée signée: {} par: {}", 
-                           scheduleId, auditor.getEmail());
-                return simulatedTxId;
-            }
+            ScheduleSignTransaction scheduleSignTx = new ScheduleSignTransaction()
+                    .setScheduleId(ScheduleId.fromString(scheduleId))
+                    .freezeWith(client)
+                    .sign(signer);
 
-            ScheduleId schedule = ScheduleId.fromString(scheduleId);
-
-            ScheduleSignTransaction signTx = new ScheduleSignTransaction()
-                    .setScheduleId(schedule);
-
-            TransactionResponse response = signTx.execute(client);
+            TransactionResponse response = scheduleSignTx.execute(client);
             String transactionId = response.transactionId.toString();
 
-            logger.info("Transaction programmée signée et exécutée: {} par: {}", 
-                       scheduleId, auditor.getEmail());
+            logger.info("Transaction programmée {} signée (TX: {})", scheduleId, transactionId);
             return transactionId;
 
         } catch (Exception e) {
-            logger.error("Erreur lors de la signature de la transaction programmée", e);
+            logger.error("Erreur lors de la signature de la transaction programmée {}", scheduleId, e);
             throw new RuntimeException("Impossible de signer la transaction programmée", e);
         }
     }
 
     /**
-     * Transfère des tokens entre comptes
+     * Récupère le solde HBAR d'un compte.
+     * @param accountId L'ID du compte.
+     * @return Le solde en HBAR.
      */
-    public String transferTokens(String tokenId, String fromAccountId, 
-                                String toAccountId, BigDecimal amount) {
+    public BigDecimal getAccountBalance(String accountId) {
         try {
-            if (client == null || operatorId == null) {
-                // Mode simulation
-                String simulatedTxId = "0.0." + (System.currentTimeMillis() % 1000000) + "@" + 
-                                     (System.currentTimeMillis() / 1000);
-                logger.info("Mode simulation - Tokens transférés: {} {} de {} vers {}", 
-                           amount, tokenId, fromAccountId, toAccountId);
-                return simulatedTxId;
-            }
+            AccountBalanceQuery query = new AccountBalanceQuery()
+                    .setAccountId(AccountId.fromString(accountId));
 
-            TokenId token = TokenId.fromString(tokenId);
-            AccountId fromAccount = AccountId.fromString(fromAccountId);
-            AccountId toAccount = AccountId.fromString(toAccountId);
+            Hbar balance = query.execute(client).hbars;
+            return BigDecimal.valueOf(balance.toTinybars(), 8); // Convert tinybars to HBAR
 
+        } catch (Exception e) {
+            logger.error("Erreur lors de la récupération du solde du compte {}", accountId, e);
+            throw new RuntimeException("Impossible de récupérer le solde du compte", e);
+        }
+    }
+
+    /**
+     * Transfère des HBAR entre comptes.
+     * @param fromAccountId L'ID du compte expéditeur.
+     * @param fromPrivateKey La clé privée de l'expéditeur.
+     * @param toAccountId L'ID du compte destinataire.
+     * @param amount Le montant en HBAR à transférer.
+     * @return L'ID de la transaction.
+     */
+    public String transferHbar(String fromAccountId, PrivateKey fromPrivateKey, String toAccountId, BigDecimal amount) {
+        try {
             TransferTransaction transferTx = new TransferTransaction()
-                    .addTokenTransfer(token, fromAccount, -amount.longValue())
-                    .addTokenTransfer(token, toAccount, amount.longValue());
+                    .addHbarTransfer(AccountId.fromString(fromAccountId), Hbar.from(amount).negated())
+                    .addHbarTransfer(AccountId.fromString(toAccountId), Hbar.from(amount))
+                    .freezeWith(client)
+                    .sign(fromPrivateKey);
 
             TransactionResponse response = transferTx.execute(client);
             String transactionId = response.transactionId.toString();
 
-            logger.info("Tokens transférés: {} {} de {} vers {}", 
-                       amount, tokenId, fromAccountId, toAccountId);
+            logger.info("Transfert de {} HBAR de {} vers {} réussi (TX: {})", amount, fromAccountId, toAccountId, transactionId);
+            return transactionId;
+
+        } catch (Exception e) {
+            logger.error("Erreur lors du transfert de HBAR", e);
+            throw new RuntimeException("Impossible de transférer les HBAR", e);
+        }
+    }
+
+    /**
+     * Associe un token à un compte.
+     * @param accountId L'ID du compte.
+     * @param privateKey La clé privée du compte.
+     * @param tokenId L'ID du token.
+     * @return L'ID de la transaction.
+     */
+    public String associateTokenToAccount(String accountId, PrivateKey privateKey, String tokenId) {
+        try {
+            TokenAssociateTransaction tokenAssociateTx = new TokenAssociateTransaction()
+                    .setAccountId(AccountId.fromString(accountId))
+                    .setTokenIds(Collections.singletonList(TokenId.fromString(tokenId)))
+                    .freezeWith(client)
+                    .sign(privateKey);
+
+            TransactionResponse response = tokenAssociateTx.execute(client);
+            String transactionId = response.transactionId.toString();
+
+            logger.info("Token {} associé au compte {} (TX: {})", tokenId, accountId, transactionId);
+            return transactionId;
+
+        } catch (Exception e) {
+            logger.error("Erreur lors de l'association du token {} au compte {}", tokenId, accountId, e);
+            throw new RuntimeException("Impossible d'associer le token au compte", e);
+        }
+    }
+
+    /**
+     * Soumet un message au Hedera Consensus Service (HCS).
+     * @param topicId L'ID du topic HCS.
+     * @param message Le message à soumettre.
+     * @return L'ID de la transaction.
+     */
+    public String submitConsensusMessage(String topicId, String message) {
+        try {
+            TopicMessageSubmitTransaction submitMessageTx = new TopicMessageSubmitTransaction()
+                    .setTopicId(TopicId.fromString(topicId))
+                    .setMessage(message);
+
+            TransactionResponse response = submitMessageTx.execute(client);
+            String transactionId = response.transactionId.toString();
+
+            logger.info("Message soumis au topic {} (TX: {})", topicId, transactionId);
+            return transactionId;
+
+        } catch (Exception e) {
+            logger.error("Erreur lors de la soumission du message au topic {}", topicId, e);
+            throw new RuntimeException("Impossible de soumettre le message au topic", e);
+        }
+    }
+
+    /**
+     * Récupère le reçu d'une transaction.
+     * @param transactionId L'ID de la transaction.
+     * @return Le reçu de la transaction.
+     */
+    public TransactionReceipt getTransactionReceipt(TransactionId transactionId) {
+        try {
+            return transactionId.getReceipt(client);
+        } catch (Exception e) {
+            logger.error("Erreur lors de la récupération du reçu de la transaction {}", transactionId, e);
+            throw new RuntimeException("Impossible de récupérer le reçu de la transaction", e);
+        }
+    }
+
+    /**
+     * Crée un compte Hedera.
+     * @param initialBalance Le solde initial du compte en HBAR.
+     * @return Les informations du compte créé (AccountId et PrivateKey).
+     */
+    public HederaAccountInfo createAccount(BigDecimal initialBalance) {
+        try {
+            PrivateKey newAccountPrivateKey = PrivateKey.generateED25519();
+            PublicKey newAccountPublicKey = newAccountPrivateKey.getPublicKey();
+
+            AccountCreateTransaction accountCreateTx = new AccountCreateTransaction()
+                    .setKey(newAccountPublicKey)
+                    .setInitialBalance(Hbar.from(initialBalance));
+
+            TransactionResponse response = accountCreateTx.execute(client);
+            AccountId newAccountId = response.getReceipt(client).accountId;
+
+            logger.info("Compte Hedera créé: {} avec solde initial de {} HBAR", newAccountId, initialBalance);
+            return new HederaAccountInfo(newAccountId.toString(), newAccountPrivateKey.toString());
+
+        } catch (Exception e) {
+            logger.error("Erreur lors de la création du compte Hedera", e);
+            throw new RuntimeException("Impossible de créer le compte Hedera", e);
+        }
+    }
+
+    public static class HederaAccountInfo {
+        private final String accountId;
+        private final String privateKey;
+
+        public HederaAccountInfo(String accountId, String privateKey) {
+            this.accountId = accountId;
+            this.privateKey = privateKey;
+        }
+
+        public String getAccountId() {
+            return accountId;
+        }
+
+        public String getPrivateKey() {
+            return privateKey;
+        }
+    }
+
+    /**
+     * Libère des fonds d'un escrow.
+     * @param contractId L'ID du contrat escrow.
+     * @param amount Le montant à libérer.
+     * @param recipientAccountId L'ID du compte destinataire.
+     * @param tokenToReleaseId L'ID du token à libérer (si applicable).
+     * @param tokenAmountToRelease Le montant du token à libérer (si applicable).
+     * @return L'ID de la transaction.
+     */
+    public String releaseFromEscrow(String contractId, BigDecimal amount, String recipientAccountId, String tokenToReleaseId, BigDecimal tokenAmountToRelease) {
+        try {
+            ContractExecuteTransaction tx = new ContractExecuteTransaction()
+                .setContractId(ContractId.fromString(contractId))
+                .setGas(200_000) // Gas for execution
+                .setFunction("release", new ContractFunctionParameters()
+                        .addUint256(amount.multiply(new BigDecimal("100000000")).toBigInteger()) // HBAR amount in tinybars
+                        .addAddress(AccountId.fromString(recipientAccountId).toSolidityAddress())
+                        .addAddress(TokenId.fromString(tokenToReleaseId).toSolidityAddress())
+                        .addUint256(BigInteger.valueOf(tokenAmountToRelease.longValue()))); // Token amount
+
+            TransactionResponse response = tx.execute(client);
+            String txId = response.transactionId.toString();
+            logger.info("Libération de {} HBAR et {} tokens {} de l'escrow {} vers {} initiée (TX: {})", amount, tokenAmountToRelease, tokenToReleaseId, contractId, recipientAccountId, txId);
+            return txId;
+
+        } catch (Exception e) {
+            logger.error("Erreur lors de la libération de l'escrow {}", contractId, e);
+            throw new RuntimeException("Échec de la libération de l'escrow", e);
+        }
+    }
+
+
+    /**
+     * Crée (minte) une nouvelle quantité d'un token.
+     * @param tokenId L'ID du token à minter.
+     * @param amount Le montant à créer (en plus petite unité, ex: centimes).
+     */
+    public String mintToken(String tokenId, long amount) {
+        try {
+            TokenMintTransaction mintTx = new TokenMintTransaction()
+                    .setTokenId(TokenId.fromString(tokenId))
+                    .setAmount(amount);
+
+            TransactionResponse response = mintTx.execute(client);
+            String txId = response.transactionId.toString();
+            logger.info("Mint de {} tokens pour le token {} réussi (TX: {})", amount, tokenId, txId);
+            return txId;
+        } catch (Exception e) {
+            logger.error("Erreur lors du mint du token {}", tokenId, e);
+            throw new RuntimeException("Échec du mint de token", e);
+        }
+    }
+
+    /**
+     * Brûle (wipe) une quantité de token du compte d'un utilisateur.
+     * @param tokenId L'ID du token à brûler.
+     * @param accountId Le compte de l'utilisateur dont les tokens seront brûlés.
+     * @param amount Le montant à brûler (en plus petite unité).
+     */
+    public String burnToken(String tokenId, String accountId, long amount) {
+        try {
+            TokenWipeTransaction wipeTx = new TokenWipeTransaction()
+                    .setTokenId(TokenId.fromString(tokenId))
+                    .setAccountId(AccountId.fromString(accountId))
+                    .setAmount(amount);
+
+            TransactionResponse response = wipeTx.execute(client);
+            String txId = response.transactionId.toString();
+            logger.info("Burn de {} tokens du compte {} pour le token {} réussi (TX: {})", amount, accountId, tokenId, txId);
+            return txId;
+        } catch (Exception e) {
+            logger.error("Erreur lors du burn du token {} pour le compte {}", tokenId, accountId, e);
+            throw new RuntimeException("Échec du burn de token", e);
+        }
+    }
+
+    /**
+     * Transfère des tokens entre comptes.
+     */
+    public String transferTokens(String tokenId, String fromAccountId, String toAccountId, long amount) {
+        try {
+            TransferTransaction transferTx = new TransferTransaction()
+                    .addTokenTransfer(TokenId.fromString(tokenId), AccountId.fromString(fromAccountId), -amount)
+                    .addTokenTransfer(TokenId.fromString(tokenId), AccountId.fromString(toAccountId), amount)
+                    .freezeWith(client);
+            
+            // Note: This assumes the sender's key is available or the platform operator has control.
+            // For a real scenario, this would need to be signed by the 'fromAccount' user.
+            // For now, we assume the operator is the one initiating transfers.
+            TransactionResponse response = transferTx.execute(client);
+            String transactionId = response.transactionId.toString();
+
+            logger.info("Tokens transférés: {} {} de {} vers {}", amount, tokenId, fromAccountId, toAccountId);
             return transactionId;
 
         } catch (Exception e) {
@@ -214,193 +406,99 @@ public class HederaService {
     }
 
     /**
-     * Crée un nouveau compte Hedera pour un utilisateur
+     * Prépare une transaction non signée pour l'association d'un token HTS à un compte Hedera.
+     * Cette transaction doit être signée par l'utilisateur côté client.
+     * @param accountId L'ID du compte Hedera de l'utilisateur.
+     * @param tokenId L'ID du token à associer.
+     * @return La transaction sérialisée en Base64.
      */
-    public HederaAccountInfo createAccount(String userEmail) {
+    public String prepareTokenAssociateTransaction(String accountId, String tokenId) {
         try {
-            if (client == null || operatorId == null) {
-                // Mode simulation
-                String simulatedAccountId = "0.0." + (System.currentTimeMillis() % 1000000);
-                String simulatedPrivateKey = "302e020100300506032b657004220420" + 
-                                           String.format("%032x", System.currentTimeMillis());
-                String simulatedPublicKey = "302a300506032b6570032100" + 
-                                          String.format("%032x", System.currentTimeMillis() + 1);
-                
-                logger.info("Mode simulation - Compte créé: {} pour: {}", simulatedAccountId, userEmail);
-                return new HederaAccountInfo(simulatedAccountId, simulatedPrivateKey, simulatedPublicKey);
-            }
-
-            PrivateKey newAccountPrivateKey = PrivateKey.generateED25519();
-            PublicKey newAccountPublicKey = newAccountPrivateKey.getPublicKey();
-
-            TransactionResponse response = new AccountCreateTransaction()
-                    .setKey(newAccountPublicKey)
-                    .setInitialBalance(Hbar.fromTinybars(1000))
-                    .execute(client);
-
-            TransactionReceipt receipt = response.getReceipt(client);
-            AccountId newAccountId = receipt.accountId;
-
-            logger.info("Nouveau compte Hedera créé: {} pour l'utilisateur: {}", newAccountId, userEmail);
-
-            return new HederaAccountInfo(
-                    newAccountId.toString(),
-                    newAccountPrivateKey.toString(),
-                    newAccountPublicKey.toString()
-            );
+            TokenAssociateTransaction transaction = new TokenAssociateTransaction()
+                    .setAccountId(AccountId.fromString(accountId))
+                    .setTokenIds(Collections.singletonList(TokenId.fromString(tokenId)))
+                    .freezeWith(client);
+            
+            // La transaction n'est PAS signée ici. Elle sera signée par l'utilisateur.
+            return java.util.Base64.getEncoder().encodeToString(transaction.toBytes());
 
         } catch (Exception e) {
-            logger.error("Erreur lors de la création du compte Hedera pour: {}", userEmail, e);
-            throw new RuntimeException("Impossible de créer le compte Hedera", e);
+            logger.error("Erreur lors de la préparation de la transaction d'association pour le compte {} et le token {}", accountId, tokenId, e);
+            throw new RuntimeException("Impossible de préparer la transaction d'association", e);
         }
     }
 
     /**
-     * Libère les fonds d'un compte de séquestre vers l'agriculteur et la plateforme
+     * Retire des HBAR du HarvestVault smart contract pour payer un agriculteur.
      */
-    public String releaseFromEscrow(String escrowAccountId, String farmerAccountId, BigDecimal farmerAmount, String platformAccountId, BigDecimal platformAmount) {
+    public String withdrawFromVault(String contractId, BigDecimal amountToWithdraw, String recipientAccountId) {
         try {
-            if (client == null || operatorKey == null) {
-                String simulatedTxId = "0.0." + (System.currentTimeMillis() % 1000000) + "@" + (System.currentTimeMillis() / 1000);
-                logger.info("Mode simulation - Libération du séquestre: {} HBAR vers l'agriculteur {}, {} HBAR vers la plateforme {}", 
-                           farmerAmount, farmerAccountId, platformAmount, platformAccountId);
-                return simulatedTxId;
-            }
-
-            AccountId escrowAccount = AccountId.fromString(escrowAccountId);
-            AccountId farmerAccount = AccountId.fromString(farmerAccountId);
-            AccountId platformAccount = AccountId.fromString(platformAccountId);
-
-            long farmerTinybars = farmerAmount.multiply(BigDecimal.valueOf(100_000_000)).longValue();
-            long platformTinybars = platformAmount.multiply(BigDecimal.valueOf(100_000_000)).longValue();
-            long totalTinybars = farmerTinybars + platformTinybars;
-
-            TransactionResponse response = new TransferTransaction()
-                    .addHbarTransfer(escrowAccount, Hbar.fromTinybars(-totalTinybars))
-                    .addHbarTransfer(farmerAccount, Hbar.fromTinybars(farmerTinybars))
-                    .addHbarTransfer(platformAccount, Hbar.fromTinybars(platformTinybars))
-                    .freezeWith(client)
-                    .sign(operatorKey) // Signé par la clé de l'opérateur qui contrôle le compte de séquestre
-                    .execute(client);
-
-            String transactionId = response.transactionId.toString();
-            logger.info("Libération du séquestre réussie (TX: {})", transactionId);
-            return transactionId;
+            ContractExecuteTransaction tx = new ContractExecuteTransaction()
+                .setContractId(ContractId.fromString(contractId))
+                .setGas(150_000) // Gas for withdrawal execution
+                .setFunction("withdrawHbar", new ContractFunctionParameters()
+                        .addUint256(amountToWithdraw.multiply(new BigDecimal("100000000")).toBigInteger()) // tinybars
+                        .addAddress(AccountId.fromString(recipientAccountId).toSolidityAddress()));
+            
+            TransactionResponse response = tx.execute(client);
+            String txId = response.transactionId.toString();
+            logger.info("Retrait de {} HBAR du vault {} vers {} initié (TX: {})", amountToWithdraw, contractId, recipientAccountId, txId);
+            return txId;
 
         } catch (Exception e) {
-            logger.error("Erreur lors de la libération du séquestre depuis le compte {}", escrowAccountId, e);
-            throw new RuntimeException("Échec de la libération du séquestre", e);
+            logger.error("Erreur lors du retrait du vault {}", contractId, e);
+            throw new RuntimeException("Échec du retrait du vault", e);
         }
     }
 
+    // Getters and other utility methods...
+    public Client getClient() { return client; }
+    public AccountId getOperatorId() { return operatorId; }
+    public PrivateKey getOperatorKey() { return operatorKey; }
+
     /**
-     * Transfère des HBAR entre deux comptes
+     * Prépare une transaction non signée pour le transfert de HBAR.
+     * Cette transaction doit être signée par l'utilisateur côté client.
+     * @param fromAccountId L'ID du compte Hedera de l'expéditeur.
+     * @param toAccountId L'ID du compte Hedera du destinataire.
+     * @param amount Le montant en HBAR à transférer.
+     * @return La transaction sérialisée en Base64.
      */
-    public String transferHbar(String fromAccountId, String fromPrivateKey,
-                               String toAccountId, BigDecimal amount) {
+    public String prepareHbarTransferTransaction(String fromAccountId, String toAccountId, BigDecimal amount) {
         try {
-            if (client == null) {
-                // Mode simulation
-                String simulatedTxId = "0.0." + (System.currentTimeMillis() % 1000000) + "@" + 
-                                     (System.currentTimeMillis() / 1000);
-                logger.info("Mode simulation - Transfert HBAR: {} HBAR de {} vers {}", 
-                           amount, fromAccountId, toAccountId);
-                return simulatedTxId;
-            }
+            TransferTransaction transaction = new TransferTransaction()
+                    .addHbarTransfer(AccountId.fromString(fromAccountId), Hbar.from(amount).negated())
+                    .addHbarTransfer(AccountId.fromString(toAccountId), Hbar.from(amount))
+                    .freezeWith(client);
 
-            AccountId sender = AccountId.fromString(fromAccountId);
-            AccountId receiver = AccountId.fromString(toAccountId);
-            PrivateKey senderKey = PrivateKey.fromString(fromPrivateKey);
-
-            long tinybars = amount.multiply(BigDecimal.valueOf(100_000_000)).longValue();
-
-            TransactionResponse response = new TransferTransaction()
-                    .addHbarTransfer(sender, Hbar.fromTinybars(-tinybars))
-                    .addHbarTransfer(receiver, Hbar.fromTinybars(tinybars))
-                    .freezeWith(client)
-                    .sign(senderKey)
-                    .execute(client);
-
-            String transactionId = response.transactionId.toString();
-
-            logger.info("Transfert HBAR réussi: {} HBAR de {} vers {} (TX: {})",
-                    amount, fromAccountId, toAccountId, transactionId);
-
-            return transactionId;
+            // La transaction n'est PAS signée ici. Elle sera signée par l'utilisateur.
+            return java.util.Base64.getEncoder().encodeToString(transaction.toBytes());
 
         } catch (Exception e) {
-            logger.error("Erreur lors du transfert HBAR de {} vers {}", fromAccountId, toAccountId, e);
-            throw new RuntimeException("Échec du transfert HBAR", e);
+            logger.error("Erreur lors de la préparation de la transaction de transfert HBAR de {} vers {}", fromAccountId, toAccountId, e);
+            throw new RuntimeException("Impossible de préparer la transaction de transfert HBAR", e);
         }
     }
 
-    public AccountId getOperatorId() {
-        return operatorId;
-    }
-
-    public String getOperatorAccountId() {
-        return operatorAccountId;
-    }
-
-    public Client getClient() {
-        return client;
-    }
-
-    public PrivateKey getOperatorKey() {
-        return operatorKey;
-    }
-
     /**
-     * Transfère des HBAR depuis le compte opérateur principal
+     * Soumet une transaction Hedera signée au réseau.
+     * @param signedTransactionBytes Base64 encodé des bytes de la transaction signée.
+     * @return L'ID de la transaction soumise.
      */
-    public String transferHbarFromOperator(String toAccountId, BigDecimal amount) {
-        if (operatorId == null || operatorKey == null) {
-            throw new IllegalStateException("Le compte opérateur Hedera n'est pas configuré.");
-        }
-        return transferHbar(operatorId.toString(), operatorKey.toString(), toAccountId, amount);
-    }
-
-    /**
-     * Récupère le solde d'un compte Hedera
-     */
-    public BigDecimal getAccountBalance(String accountId) {
+    public String submitSignedTransaction(String signedTransactionBytes) {
         try {
-            if (client == null) {
-                // Mode simulation - retourner un solde aléatoire
-                return BigDecimal.valueOf(Math.random() * 1000).setScale(8, BigDecimal.ROUND_HALF_UP);
-            }
+            byte[] transactionBytes = java.util.Base64.getDecoder().decode(signedTransactionBytes);
+            Transaction transaction = Transaction.fromBytes(transactionBytes);
 
-            AccountId account = AccountId.fromString(accountId);
-            AccountBalance balance = new AccountBalanceQuery()
-                    .setAccountId(account)
-                    .execute(client);
+            TransactionResponse response = (TransactionResponse) transaction.execute(client);
+            String txId = response.transactionId.toString();
 
-            return BigDecimal.valueOf(balance.hbars.toTinybars())
-                    .divide(BigDecimal.valueOf(100_000_000), 8, BigDecimal.ROUND_HALF_UP);
+            logger.info("Transaction signée soumise au réseau Hedera. TX ID: {}", txId);
+            return txId;
 
         } catch (Exception e) {
-            logger.error("Erreur lors de la récupération du solde pour le compte: {}", accountId, e);
-            return BigDecimal.ZERO;
+            logger.error("Erreur lors de la soumission de la transaction signée: {}", e.getMessage(), e);
+            throw new RuntimeException("Impossible de soumettre la transaction signée", e);
         }
-    }
-
-    /**
-     * Classe interne pour les informations de compte Hedera
-     */
-    public static class HederaAccountInfo {
-        private final String accountId;
-        private final String privateKey;
-        private final String publicKey;
-
-        public HederaAccountInfo(String accountId, String privateKey, String publicKey) {
-            this.accountId = accountId;
-            this.privateKey = privateKey;
-            this.publicKey = publicKey;
-        }
-
-        public String getAccountId() { return accountId; }
-        public String getPrivateKey() { return privateKey; }
-        public String getPublicKey() { return publicKey; }
     }
 }
-

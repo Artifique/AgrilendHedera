@@ -2,6 +2,7 @@ package com.agrilend.backend.service;
 
 import com.agrilend.backend.entity.Order;
 import com.agrilend.backend.entity.User;
+import com.hedera.hashgraph.sdk.PrivateKey;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,11 +32,11 @@ public class EscrowService {
 
             User buyerUser = order.getBuyer().getUser();
             String buyerAccountId = buyerUser.getHederaAccountId();
-            String buyerPrivateKey = buyerUser.getHederaPrivateKey();
+            // buyerPrivateKey is no longer needed here as the transaction will be signed client-side
             logger.info("Buyer Account ID: {}", buyerAccountId);
 
-            if (buyerAccountId == null || buyerAccountId.isEmpty() || buyerPrivateKey == null || buyerPrivateKey.isEmpty()) {
-                throw new IllegalStateException("L'acheteur n'a pas de compte ou de clé privée Hedera configuré");
+            if (buyerAccountId == null || buyerAccountId.isEmpty()) {
+                throw new IllegalStateException("L'acheteur n'a pas de compte Hedera configuré");
             }
 
             BigDecimal amountInHbar = order.getTotalAmount();
@@ -49,22 +50,22 @@ public class EscrowService {
             }
 
             if (escrowAccountId == null || escrowAccountId.isEmpty()) {
-                String simulatedTxId = "simulated_tx_" + System.currentTimeMillis();
-                logger.warn("Mode simulation - Escrow initiated: {} for order: {}", simulatedTxId, order.getId());
-                return simulatedTxId;
+                // In simulation mode, we would still return a placeholder for the unsigned transaction
+                String simulatedUnsignedTx = "simulated_unsigned_tx_" + System.currentTimeMillis();
+                logger.warn("Mode simulation - Escrow initiated: {} for order: {}", simulatedUnsignedTx, order.getId());
+                return simulatedUnsignedTx;
             }
 
-            logger.info("Attempting HBAR transfer from {} to {} for amount {}", buyerAccountId, escrowAccountId, amountInHbar);
-            String transactionId = hederaService.transferHbar(
+            logger.info("Preparing unsigned HBAR transfer from {} to {} for amount {}", buyerAccountId, escrowAccountId, amountInHbar);
+            String unsignedTransaction = hederaService.prepareHbarTransferTransaction(
                 buyerAccountId,
-                buyerPrivateKey,
                 escrowAccountId,
                 amountInHbar
             );
-            logger.info("HBAR transfer completed. Transaction ID: {}", transactionId);
+            logger.info("Unsigned HBAR transfer prepared.");
 
-            logger.info("Séquestre initié avec succès pour la commande: {} (TX: {})", order.getId(), transactionId);
-            return transactionId;
+            logger.info("Séquestre initié avec succès pour la commande: {} (Unsigned TX: {})", order.getId(), unsignedTransaction);
+            return unsignedTransaction; // Return the unsigned transaction for client-side signing
 
         } catch (Exception e) {
             logger.error("Failed to initiate escrow for order: {}", order.getId(), e);
@@ -93,16 +94,26 @@ public class EscrowService {
                 return simulatedTxId;
             }
 
-            String transactionId = hederaService.releaseFromEscrow(
+            // Transfer farmer's amount
+            String farmerTxId = hederaService.transferHbar(
                 escrowAccountId,
+                hederaService.getOperatorKey(), // Assuming operator key controls escrow for now
                 farmerAccountId,
-                farmerAmount,
-                operatorAccountId, // Platform fees go to the operator account
+                farmerAmount
+            );
+            logger.info("Farmer amount transferred. Transaction ID: {}", farmerTxId);
+
+            // Transfer platform fee
+            String feeTxId = hederaService.transferHbar(
+                escrowAccountId,
+                hederaService.getOperatorKey(), // Assuming operator key controls escrow for now
+                operatorAccountId,
                 platformFee
             );
+            logger.info("Platform fee transferred. Transaction ID: {}", feeTxId);
 
-            logger.info("Escrow released successfully for order: {} (TX: {})", order.getId(), transactionId);
-            return transactionId;
+            logger.info("Escrow released successfully for order: {} (Farmer TX: {}, Fee TX: {})", order.getId(), farmerTxId, feeTxId);
+            return farmerTxId; // Return one of the transaction IDs, or a combined one if needed
 
         } catch (Exception e) {
             logger.error("Failed to release escrow for order: {}", order.getId(), e);

@@ -11,7 +11,7 @@ import com.agrilend.backend.repository.BuyerRepository;
 import com.agrilend.backend.repository.FarmerRepository;
 import com.agrilend.backend.repository.UserRepository;
 import com.agrilend.backend.security.JwtTokenProvider;
-import com.agrilend.backend.service.HederaService.HederaAccountInfo;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -94,11 +94,6 @@ public class AuthService {
         user.setPhone(signUpRequest.getPhone());
         user.setRole(signUpRequest.getRole());
         user.setIsActive(true);
-
-        // Create Hedera Account
-        HederaAccountInfo hederaAccount = hederaService.createAccount(user.getEmail());
-        user.setHederaAccountId(hederaAccount.getAccountId());
-        user.setHederaPrivateKey(hederaAccount.getPrivateKey()); // IMPORTANT: Secure this key properly
 
         User savedUser = userRepository.save(user);
 

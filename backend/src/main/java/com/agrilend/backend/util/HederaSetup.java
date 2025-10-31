@@ -30,11 +30,10 @@ public class HederaSetup {
 
             // 1. Créer un compte de trésorerie dédié
             System.out.println("\n--- Création du compte de trésorerie ---");
-            HederaService.HederaAccountInfo treasuryAccountInfo = hederaService.createAccount("agrilend_treasury@example.com");
+            HederaService.HederaAccountInfo treasuryAccountInfo = hederaService.createAccount(BigDecimal.ZERO);
             System.out.println("Nouveau compte de trésorerie créé:");
             System.out.println("  Account ID: " + treasuryAccountInfo.getAccountId());
             System.out.println("  Private Key: " + treasuryAccountInfo.getPrivateKey()); // Gardez cette clé SECRÈTE
-            System.out.println("  Public Key: " + treasuryAccountInfo.getPublicKey());
             String treasuryAccountId = treasuryAccountInfo.getAccountId();
             PrivateKey treasuryPrivateKey = PrivateKey.fromString(treasuryAccountInfo.getPrivateKey());
 

@@ -54,9 +54,6 @@ public class User implements UserDetails {
     @Column(name = "hedera_account_id")
     private String hederaAccountId;
 
-    @Column(name = "hedera_private_key")
-    private String hederaPrivateKey;
-
     @Column(name = "is_active")
     private Boolean isActive = true;
 
@@ -181,14 +178,6 @@ public class User implements UserDetails {
         this.hederaAccountId = hederaAccountId;
     }
 
-    public String getHederaPrivateKey() {
-        return hederaPrivateKey;
-    }
-
-    public void setHederaPrivateKey(String hederaPrivateKey) {
-        this.hederaPrivateKey = hederaPrivateKey;
-    }
-
     public Boolean getIsActive() {
         return isActive;
     }
@@ -221,4 +210,3 @@ public class User implements UserDetails {
         this.updatedAt = updatedAt;
     }
 }
-

@@ -1,9 +1,11 @@
+import 'package:agrilend/models/user.dart';
+import 'package:agrilend/services/auth_notifier.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../providers/auth_provider.dart';
+import 'package:agrilend/services/auth_providers.dart'; // Direct import
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -30,15 +32,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final authState = ref.watch(authProvider);
 
     ref.listen(authProvider, (previous, next) {
+      // ignore: avoid_print
+      print('Auth state changed in LoginScreen: isAuthenticated=${next.isAuthenticated}, userType=${next.user?.userType}');
       if (next.isAuthenticated) {
         final userType = next.user?.userType;
         switch (userType) {
           case 'farmer':
             context.go('/farmer');
             break;
-
-          case 'agent':
-            context.go('/agent');
+          case 'buyer':
+          default:
+            context.go('/buyer');
             break;
         }
       }
@@ -100,35 +104,45 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             color: Colors.white,
           ),
         ).animate().scale(
-          delay: const Duration(milliseconds: 200),
-          duration: const Duration(milliseconds: 600),
-          curve: Curves.elasticOut,
-        ),
+              delay: const Duration(milliseconds: 200),
+              duration: const Duration(milliseconds: 600),
+              curve: Curves.elasticOut,
+            ),
         const SizedBox(height: 24),
         Text(
           'Bon retour !',
           style: Theme.of(context).textTheme.displaySmall?.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
-        ).animate().slideY(
-          delay: const Duration(milliseconds: 400),
-          duration: const Duration(milliseconds: 600),
-          begin: 1,
-          end: 0,
-        ).fade(),
+                fontWeight: FontWeight.bold,
+              ),
+        )
+            .animate()
+            .slideY(
+              delay: const Duration(milliseconds: 400),
+              duration: const Duration(milliseconds: 600),
+              begin: 1,
+              end: 0,
+            )
+            .fade(),
         const SizedBox(height: 8),
         Text(
           'Connectez-vous pour accéder à votre compte Agri-lend',
           style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-            color: Theme.of(context).textTheme.bodyLarge?.color?.withOpacity(0.7),
-          ),
+                color: Theme.of(context)
+                    .textTheme
+                    .bodyLarge
+                    ?.color
+                    ?.withOpacity(0.7),
+              ),
           textAlign: TextAlign.center,
-        ).animate().slideY(
-          delay: const Duration(milliseconds: 600),
-          duration: const Duration(milliseconds: 600),
-          begin: 1,
-          end: 0,
-        ).fade(),
+        )
+            .animate()
+            .slideY(
+              delay: const Duration(milliseconds: 600),
+              duration: const Duration(milliseconds: 600),
+              begin: 1,
+              end: 0,
+            )
+            .fade(),
       ],
     );
   }
@@ -152,11 +166,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         return null;
       },
     ).animate().slideX(
-      delay: const Duration(milliseconds: 800),
-      duration: const Duration(milliseconds: 600),
-      begin: -1,
-      end: 0,
-    );
+          delay: const Duration(milliseconds: 800),
+          duration: const Duration(milliseconds: 600),
+          begin: -1,
+          end: 0,
+        );
   }
 
   Widget _buildPasswordField() {
@@ -168,7 +182,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         prefixIcon: const Icon(Icons.lock_rounded),
         suffixIcon: IconButton(
           icon: Icon(
-            _obscurePassword ? Icons.visibility_rounded : Icons.visibility_off_rounded,
+            _obscurePassword
+                ? Icons.visibility_rounded
+                : Icons.visibility_off_rounded,
           ),
           onPressed: () {
             setState(() {
@@ -181,17 +197,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         if (value == null || value.isEmpty) {
           return 'Veuillez saisir votre mot de passe';
         }
-        if (value.length < 6) {
-          return 'Le mot de passe doit contenir au moins 6 caractères';
+        if (value.length < 4) {
+          return 'Le mot de passe doit contenir au moins 4 caractères';
         }
         return null;
       },
     ).animate().slideX(
-      delay: const Duration(milliseconds: 1000),
-      duration: const Duration(milliseconds: 600),
-      begin: 1,
-      end: 0,
-    );
+          delay: const Duration(milliseconds: 1000),
+          duration: const Duration(milliseconds: 600),
+          begin: 1,
+          end: 0,
+        );
   }
 
   Widget _buildForgotPassword() {
@@ -220,9 +236,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             )
           : const Text('Se connecter'),
     ).animate().scale(
-      delay: const Duration(milliseconds: 1400),
-      duration: const Duration(milliseconds: 600),
-    );
+          delay: const Duration(milliseconds: 1400),
+          duration: const Duration(milliseconds: 600),
+        );
   }
 
   Widget _buildErrorMessage(String error) {
@@ -247,8 +263,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             child: Text(
               error,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).colorScheme.error,
-              ),
+                    color: Theme.of(context).colorScheme.error,
+                  ),
             ),
           ),
         ],
@@ -276,14 +292,40 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     ref.read(authProvider.notifier).clearError();
-    
+
     final success = await ref.read(authProvider.notifier).login(
-      _emailController.text.trim(),
-      _passwordController.text,
-    );
-    
+          _emailController.text.trim(),
+          _passwordController.text,
+        );
+
     if (!success && mounted) {
-      // L'erreur sera affichée automatiquement via le state
+      // Show clear feedback to the user and print debug info
+      final err = ref.read(authProvider).error ?? 'Échec de la connexion';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(err)),
+      );
+      // Log to console for debugging
+      // ignore: avoid_print
+      print('Login failed: $err');
+      return;
+    }
+
+    // If login succeeded, the ref.listen will handle navigation.
+    // No direct navigation here.
+    if (success && mounted) {
+      // Log stored user data to help debugging (secure storage contents)
+      try {
+        final authService = ref.read(authServiceProvider);
+        final stored = await authService.loadUserData();
+        // ignore: avoid_print
+        print('Stored user data after login: $stored');
+      } catch (e) {
+        // ignore: avoid_print
+        print('Could not read stored user data: $e');
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Connexion réussie. Redirection...')),
+      );
     }
   }
 }

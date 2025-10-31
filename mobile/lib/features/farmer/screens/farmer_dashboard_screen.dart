@@ -4,10 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../auth/providers/auth_provider.dart';
-import '../widgets/quick_actions_widget.dart';
-import '../widgets/transaction_status_card.dart';
-import '../widgets/farmer_stats_section.dart';
-import '../../home/widgets/recent_activities.dart';
+import '../widgets/quick_actions_widget.dart'; // Import QuickActionsWidget
 
 class FarmerDashboardScreen extends ConsumerWidget {
   const FarmerDashboardScreen({super.key});
@@ -17,39 +14,29 @@ class FarmerDashboardScreen extends ConsumerWidget {
     final authState = ref.watch(authProvider);
     final user = authState.user!;
 
-    return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.background,
-      body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: () async {
-            // TODO: Refresh data
-          },
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
+    return SafeArea(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          return SingleChildScrollView(
+            padding: EdgeInsets.symmetric(
+              horizontal: constraints.maxWidth > 600 ? 24 : 20,
+              vertical: 16,
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildHeader(context, user.firstName),
-                const SizedBox(height: 16),
-                Text(
-                  'Daouda Fomba',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
-                ),
-                const SizedBox(height: 16),
-                const QuickActionsWidget(),
+                _buildHeader(context, user.firstName ?? 'Agriculteur'),
                 const SizedBox(height: 24),
-                const FarmerStatsSection(),
+                _buildWelcomeSection(context, user.firstName ?? 'Agriculteur'),
                 const SizedBox(height: 24),
-                const RecentActivities(),
-
-
+                _buildGlobalMarketCard(context),
+                const SizedBox(height: 24),
+                const QuickActionsWidget(), // Use reusable QuickActionsWidget
+                const SizedBox(height: 20),
               ],
             ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }
@@ -57,63 +44,258 @@ class FarmerDashboardScreen extends ConsumerWidget {
   Widget _buildHeader(BuildContext context, String firstName) {
     return Row(
       children: [
-        // CircleAvatar on the left
+        // Logo Agri-Lend
         Container(
-          width: 56,
-          height: 56,
+          width: 50,
+          height: 50,
           decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(28),
-            boxShadow: [
-              BoxShadow(
-                color: Theme.of(context).colorScheme.primary.withOpacity(0.15),
-                blurRadius: 10,
-                offset: const Offset(0, 5),
-              ),
-            ],
+            color: const Color(0xFF10B981).withOpacity(0.1),
+            borderRadius: BorderRadius.circular(25),
           ),
-          child: ClipOval(
-            child: Image.asset(
-              'assets/images/logo-aagri.png', // Replace with user profile picture if available
-              fit: BoxFit.cover,
-            ),
+          child: const Icon(
+            Icons.eco_rounded,
+            color: Color(0xFF10B981),
+            size: 28,
           ),
         ),
-        const SizedBox(width: 16),
-        Expanded(child: Container()), // Takes up available space
-        // Notification icon on the right
-        IconButton(
-          onPressed: () {
-            GoRouter.of(context).push('/notifications');
-          },
-          icon: Stack(
+        const SizedBox(width: 12),
+        const Text(
+          'Agri-Lend',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF1F2937),
+          ),
+        ),
+        const Spacer(),
+        // Notification bell
+        Stack(
+          children: [
+            IconButton(
+              onPressed: () => context.go('/farmer/notifications'),
+              icon: const Icon(
+                Icons.notifications_outlined,
+                color: Color(0xFF6B7280),
+                size: 24,
+              ),
+            ),
+            Positioned(
+              right: 8,
+              top: 8,
+              child: Container(
+                width: 8,
+                height: 8,
+                decoration: const BoxDecoration(
+                  color: Colors.red,
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    ).animate().fade().slideX(
+      begin: -0.3,
+      duration: const Duration(milliseconds: 600),
+    );
+  }
+Widget _buildWelcomeSection(BuildContext context, String firstName) {
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(
+        'Bienvenue $firstName',
+        style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+          fontWeight: FontWeight.bold,
+          color: const Color(0xFF1F2937),
+        ),
+      ).animate().slideY(
+        begin: -0.5,
+        duration: const Duration(milliseconds: 600),
+        delay: const Duration(milliseconds: 200),
+      ),
+      const SizedBox(height: 8),
+      Text(
+        'Connectez-vous au marché mondial avec vos produits',
+        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+          color: const Color(0xFF6B7280),
+        ),
+      ).animate().slideY(
+        begin: -0.3,
+        duration: const Duration(milliseconds: 600),
+        delay: const Duration(milliseconds: 400),
+      ),
+    ],
+  );
+}
+
+
+  Widget _buildGlobalMarketCard(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF4B5563), Color(0xFF374151)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             children: [
-              const Icon(Icons.notifications_outlined, size: 28),
-              Positioned(
-                right: 0,
-                top: 0,
-                child: Container(
-                  width: 12,
-                  height: 12,
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.error,
-                    borderRadius: BorderRadius.circular(6),
+              const Icon(
+                Icons.public_rounded,
+                color: Colors.white,
+                size: 32,
+              ),
+              const SizedBox(width: 12),
+              Text(
+                'Marché Mondial',
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ).animate().slideX(
+            begin: -0.5,
+            duration: const Duration(milliseconds: 600),
+            delay: const Duration(milliseconds: 600),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Vendez vos produits partout dans le monde avec la tokenisation HBAR',
+            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+              color: const Color(0xFFD1D5DB),
+            ),
+          ).animate().slideY(
+            begin: 0.3,
+            duration: const Duration(milliseconds: 600),
+            delay: const Duration(milliseconds: 800),
+          ),
+          const SizedBox(height: 20),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () => _showContactDialog(context),
+              icon: const Icon(Icons.headset_mic_rounded),
+              label: const Text('Prendre Contact'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: const Color(0xFF10B981),
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 0,
+              ),
+            ),
+          ).animate().scale(
+            duration: const Duration(milliseconds: 600),
+            delay: const Duration(milliseconds: 1000),
+          ),
+          const SizedBox(height: 20),
+          _buildHowItWorksSection(context),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHowItWorksSection(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF6B7280).withOpacity(0.2),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 24,
+                height: 24,
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                ),
+                child: const Center(
+                  child: Text(
+                    'i',
+                    style: TextStyle(
+                      color: Color(0xFF374151),
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
                   ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Comment ça marche',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ],
           ),
-        ),
-      ],
-    ).animate().fade().slideY(
-          begin: -0.5,
-          duration: const Duration(milliseconds: 600),
-        );
+          const SizedBox(height: 8),
+          Text(
+            'Contactez notre équipe pour créer votre contrat et tokeniser vos produits. Nous nous occupons de tout le processus technique.',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: const Color(0xFFD1D5DB),
+            ),
+          ),
+        ],
+      ),
+    ).animate().slideY(
+      begin: 0.3,
+      duration: const Duration(milliseconds: 600),
+      delay: const Duration(milliseconds: 1200),
+    );
   }
 
-
-
-
-
-
+  void _showContactDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Prendre Contact'),
+        content: const Text(
+          'Notre équipe d\'agents vous contactera pour créer votre contrat intelligent et tokeniser vos produits.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Annuler'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              // TODO: Implement contact request
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Demande de contact envoyée !'),
+                  backgroundColor: Color(0xFF10B981),
+                ),
+              );
+            },
+            child: const Text('Confirmer'),
+          ),
+        ],
+      ),
+    );
+  }
 }

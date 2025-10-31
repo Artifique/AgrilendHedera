@@ -1,8 +1,9 @@
+import 'package:agrilend/models/user.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart'; // Import Riverpod
 
-import '../../../core/providers/auth_provider.dart';
+import '../../auth/providers/auth_provider.dart'; // Corrected import path
 import '../widgets/stats_card.dart';
 import '../widgets/quick_actions.dart';
 import '../widgets/recent_activities.dart';
@@ -14,8 +15,7 @@ class DashboardScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final auth = ref.watch(authProvider);
-    // TEMP : userType démo
-    final userType = 'farmer';
+    final userType = auth.user?.userType; // Get actual userType
 
     return Scaffold(
       backgroundColor: Colors.white,

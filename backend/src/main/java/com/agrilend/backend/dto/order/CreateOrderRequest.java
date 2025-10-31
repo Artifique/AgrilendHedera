@@ -20,13 +20,17 @@ public class CreateOrderRequest {
 
     private String notes;
 
+    @NotNull(message = "L'ID du dépôt HBAR est obligatoire")
+    private Long hbarDepositId;
+
     public CreateOrderRequest() {}
 
-    public CreateOrderRequest(Long offerId, BigDecimal orderedQuantity, String deliveryAddress, String notes) {
+    public CreateOrderRequest(Long offerId, BigDecimal orderedQuantity, String deliveryAddress, String notes, Long hbarDepositId) {
         this.offerId = offerId;
         this.orderedQuantity = orderedQuantity;
         this.deliveryAddress = deliveryAddress;
         this.notes = notes;
+        this.hbarDepositId = hbarDepositId;
     }
 
     public Long getOfferId() {
@@ -59,6 +63,14 @@ public class CreateOrderRequest {
 
     public void setNotes(String notes) {
         this.notes = notes;
+    }
+
+    public Long getHbarDepositId() {
+        return hbarDepositId;
+    }
+
+    public void setHbarDepositId(Long hbarDepositId) {
+        this.hbarDepositId = hbarDepositId;
     }
 }
 

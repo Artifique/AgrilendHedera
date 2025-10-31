@@ -1,22 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-
-class StockItem {
-  final String id;
-  String name;
-  double quantity;
-  String unit;
-  String status;
-
-  StockItem({
-    required this.id,
-    required this.name,
-    required this.quantity,
-    required this.unit,
-    this.status = 'En stock',
-  });
-}
+import '../../../models/stock_item.dart'; // Import StockItem model
 
 class StockManagementScreen extends StatefulWidget {
   const StockManagementScreen({super.key});

@@ -1,19 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-// ...existing code...
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:intl/date_symbol_data_local.dart'; // New import
+
+import 'services/auth_providers.dart';
 
 import 'core/theme/app_theme.dart';
 import 'core/router/app_router.dart';
-import 'core/constants/app_constants.dart';
+
+// auth providers are defined in services/auth_providers.dart
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Initialize Hive for local storage
   await Hive.initFlutter();
+
+  // Initialize date formatting for intl package
+  await initializeDateFormatting(); // New line
 
   // Configure system UI
   SystemChrome.setSystemUIOverlayStyle(
@@ -31,7 +37,13 @@ void main() async {
 
   Animate.restartOnHotReload = true;
 
-  runApp(const ProviderScope(child: AgriLendApp()));
+  // Initialize auth state by loading token from storage
+  final container = ProviderContainer();
+  final authNotifier = container.read(authNotifierProvider.notifier);
+  await authNotifier.init();
+
+  runApp(UncontrolledProviderScope(
+      container: container, child: const AgriLendApp()));
 }
 
 class AgriLendApp extends ConsumerWidget {
@@ -42,7 +54,7 @@ class AgriLendApp extends ConsumerWidget {
     final router = ref.watch(appRouterProvider);
 
     return MaterialApp.router(
-      title: AppConstants.appName,
+      title: 'AgriLend',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,

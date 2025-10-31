@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart'; // Import Riverpod
+import '../../auth/providers/auth_provider.dart'; // Import authProvider
 
 class RecentActivities extends ConsumerWidget {
   // Change to ConsumerWidget
@@ -8,7 +9,7 @@ class RecentActivities extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     // TEMP : userType démo
-    final userType = 'farmer';
+    final userType = ref.watch(authProvider).user?.id;
 
     List<Map<String, dynamic>> activities = [];
 
