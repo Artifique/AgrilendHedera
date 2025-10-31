@@ -22,6 +22,7 @@ const AnimatedSection = ({ children }) => {
       initial={{ opacity: 0, y: 50 }}
       animate={{ opacity: inView ? 1 : 0, y: inView ? 0 : 50 }}
       transition={{ duration: 0.8 }}
+      className="section-content"
     >
       {children}
     </motion.div>

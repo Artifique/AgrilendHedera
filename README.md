@@ -196,3 +196,10 @@ Assurez-vous d'avoir installé les éléments suivants sur votre machine :
     *   Exemple de démarrage : `npm install && npm start`
 
 
+
+
+## Liens des certificats:
+Boubacar Diallo: https://drive.google.com/file/d/1tS3dXci_9WFxCQG-5AIH33AwkelX410P/view?usp=sharing
+Daouda Fomba: https://drive.google.com/file/d/1JVI7c3icBhQwEbrJVBaqX2V8l7KolCRj/view?usp=sharing
+Michel Isaac Foutou: https://drive.google.com/file/d/1pNzcR3dstJRYo9dhnXDcuJqndnWhWtwP/view?usp=sharing
+Mohamed Traore: https://drive.google.com/file/d/1HZue1bWNb9-BxBiRA-7KsZMXxEw5wq2L/view?usp=sharing 

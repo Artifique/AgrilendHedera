@@ -1,70 +1,65 @@
-# Getting Started with Create React App
+# AgrilendHedera - Site Vitrine
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+## Description
 
-## Available Scripts
+Ce projet est le site vitrine d'AgrilendHedera, une plateforme dédiée à la simplification de la vente directe de produits agricoles et à la promotion de l'engagement et de la transparence entre producteurs et acheteurs. Le site présente les solutions offertes par AgrilendHedera, les témoignages de ses utilisateurs et permet aux visiteurs de prendre contact.
 
-In the project directory, you can run:
+## Fonctionnalités
 
-### `npm start`
+- **Navigation intuitive:** Une barre de navigation claire pour accéder facilement aux différentes sections.
+- **Page d'accueil dynamique:** Présentation attrayante des valeurs et objectifs d'AgrilendHedera.
+- **Section "Qui sommes nous":** Détails sur la mission, la vision et l'équipe derrière AgrilendHedera.
+- **Section "Nos Solutions":** Présentation des services clés offerts, tels que la vente directe simplifiée, l'engagement et la transparence, et le paiement sécurisé.
+- **Témoignages:** Avis et retours d'expérience des utilisateurs de la plateforme.
+- **Formulaire de contact:** Un moyen simple pour les visiteurs de poser des questions ou de demander plus d'informations.
+- **Design Responsive:** Adaptation de l'interface utilisateur à différentes tailles d'écran (ordinateurs de bureau, tablettes, mobiles).
+- **Animations fluides:** Utilisation de `framer-motion` pour des transitions et animations agréables.
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+## Technologies Utilisées
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+- **React:** Bibliothèque JavaScript pour la construction d'interfaces utilisateur.
+- **CSS:** Pour le stylisme et la mise en page.
+- **Framer Motion:** Bibliothèque pour les animations et les gestes.
+- **Font Awesome:** Pour les icônes.
 
-### `npm test`
+## Installation
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+Pour installer et exécuter le projet en local, suivez les étapes ci-dessous :
 
-### `npm run build`
+1.  **Cloner le dépôt :**
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+    ```bash
+    git clone https://github.com/Artifique/AgrilendHedera
+    cd site_vitrine
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+    ```
 
-### `npm run eject`
+2.  **Installer les dépendances :**
+    ```bash
+    npm install
+    ```
+3.  **Lancer l'application :**
+    ```bash
+    npm start
+    ```
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+L'application sera accessible à l'adresse `http://localhost:3000` dans votre navigateur.
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+## Utilisation
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+Naviguez à travers les différentes sections du site pour découvrir les solutions d'AgrilendHedera. Utilisez le formulaire de contact pour toute question ou demande d'information.
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+## Contribution
 
-## Learn More
+Les contributions sont les bienvenues ! Si vous souhaitez améliorer ce projet, veuillez suivre les étapes suivantes :
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+1.  Fork le dépôt.
+2.  Créez une nouvelle branche (`git checkout -b feature/nouvelle-fonctionnalite`).
+3.  Effectuez vos modifications et commitez-les (`git commit -m 'Ajout d'une nouvelle fonctionnalité'`).
+4.  Poussez vos modifications vers votre fork (`git push origin feature/nouvelle-fonctionnalite`).
+5.  Ouvrez une Pull Request.
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+## Contact
 
-### Code Splitting
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
-
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+Pour toute question ou support, veuillez contacter agrilends@gmail.com
